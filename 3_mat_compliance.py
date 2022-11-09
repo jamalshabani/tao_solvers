@@ -210,8 +210,11 @@ def FormObjectiveGradient(tao, x, G):
     dJdrho3 = assemble(derivative(L, rho.sub(1)))
 
     # Gradient projection
-    dJdrho2_proj = interpolate((dJdrho2 - assemble(dJdrho2 * dx)/omega), V)
-    dJdrho3_proj = interpolate((dJdrho3 - assemble(dJdrho3 * dx)/omega), V)
+    dJdrho2_proj = dJdrho2 - assemble(dJdrho2 * dx)/omega
+    dJdrho3_proj = dJdrho3 - assemble(dJdrho3 * dx)/omega
+    
+    dJdrho2_proj = interpolate(dJdrho2_proj, V)
+    dJdrho3_proj = interpolate(dJdrho3_proj, V)
 
     dJdrho2_array = dJdrho2_proj.vector().array()
     dJdrho3_array = dJdrho3_proj.vector().array()
