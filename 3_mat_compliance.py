@@ -196,24 +196,24 @@ def FormObjectiveGradient(tao, x, G):
 	objective_value = assemble(J)
 	print("The value of objective function is {}".format(objective_value))
 
+    # Print volume fraction of structural material
 	volume_s = assemble(v_s(rho) * dx)/omega
 	print("The volume fraction(Vs) is {}".format(volume_s))
 
+    # Print volume fraction of responsive material
 	volume_r = assemble(v_r(rho) * dx)/omega
 	print("The volume fraction(Vr) is {}".format(volume_r))
 	print(" ")
 
+    # Compute gradiet w.r.t rho2 and rho3
 	dJdrho2 = assemble(derivative(L, rho.sub(0)))
-	dJdrho2.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
-
 	dJdrho3 = assemble(derivative(L, rho.sub(1)))
-	dJdrho3.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
 
-	dJds = assemble(derivative(L, rho.sub(2)))
+    print(type(dJdrho2))
+    print(assemble(dJdrho2 * dx))
 
 	dJdrho2_array = dJdrho2.vector().array()
 	dJdrho3_array = dJdrho3.vector().array()
-	dJds_array = dJds.vector().array()
 
 	N = M * 3
 	index_2 = []
