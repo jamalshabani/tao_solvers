@@ -116,23 +116,19 @@ def h_r(rho):
 def W(rho):
 	return pow((rho.sub(0) + rho.sub(1)), 2) * pow((1 - rho.sub(0)), 2) * pow((1 - rho.sub(1)), 2)
 
-def Ws(rho):
-	return (rho.sub(2) * (1 - rho.sub(2)))
-
-# Define stress and strain tensors
+# Define strain tensor epsilon(u)
 def epsilon(u):
 	return 0.5 * (grad(u) + grad(u).T)
 
-
-def sigma_a(A, Id):
-	return lambda_r * tr(A) * Id + 2 * mu_r * A
-
+# Define the stress tensor sigma(u) for void
 def sigma_v(u, Id):
 	return lambda_v * tr(epsilon(u)) * Id + 2 * mu_v * epsilon(u)
 
+# Define the stress tensor sigma(u) for structural material
 def sigma_s(u, Id):
 	return lambda_s * tr(epsilon(u)) * Id + 2 * mu_s * epsilon(u)
 
+# Define the stress tensor sigma(u) for responsive material
 def sigma_r(u, Id):
 	return lambda_r * tr(epsilon(u)) * Id + 2 * mu_r * epsilon(u)
 
