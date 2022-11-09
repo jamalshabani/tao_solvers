@@ -60,7 +60,8 @@ rho = interpolate(rho, VV)
 
 # Define the constant parameters used in the problem
 kappa = Constant(options.kappa)
-cw = Constant(pi/8)  # Normalization parameter for Modica-Mortola
+# cw = Constant(pi/8)
+cw = Constant(1/6)  # Normalization parameter for Modica-Mortola
 
 # Total volume of the domain |omega|
 omega = assemble(interpolate(Constant(1.0), V) * dx)
@@ -120,15 +121,15 @@ def W(rho):
 def epsilon(u):
 	return 0.5 * (grad(u) + grad(u).T)
 
-# Define the stress tensor sigma(u) for void
+# Define the stress tensor sigma_v(u) for void
 def sigma_v(u, Id):
 	return lambda_v * tr(epsilon(u)) * Id + 2 * mu_v * epsilon(u)
 
-# Define the stress tensor sigma(u) for structural material
+# Define the stress tensor sigma_s(u) for structural material
 def sigma_s(u, Id):
 	return lambda_s * tr(epsilon(u)) * Id + 2 * mu_s * epsilon(u)
 
-# Define the stress tensor sigma(u) for responsive material
+# Define the stress tensor sigma_r(u) for responsive material
 def sigma_r(u, Id):
 	return lambda_r * tr(epsilon(u)) * Id + 2 * mu_r * epsilon(u)
 
@@ -141,20 +142,17 @@ p = Function(VV, name = "Adjoint variable")
 bcs = DirichletBC(VV, Constant((0, 0)), 7)
 
 # Define the objective function
-J = 0.5 * inner(u - u_star, u - u_star) * dx(4)
-func1 = kappa_d_e * W(rho) * dx + kappa_d_e_s * Ws(rho) * dx
+J = inner(f, u) * ds(8)
+func1 = kappa_d_e * W(rho) * dx
 
 func2_sub1 = inner(grad(v_v(rho)), grad(v_v(rho))) * dx
 func2_sub2 = inner(grad(v_s(rho)), grad(v_s(rho))) * dx
 func2_sub3 = inner(grad(v_r(rho)), grad(v_r(rho))) * dx
-func2_sub4 = inner(grad(h_h(rho)), grad(h_h(rho))) * dx
 
-func2 = kappa_m_e * (func2_sub1 + func2_sub2 + func2_sub3) + kappa_m_e_s * func2_sub4
-func3 = lagrange_s * (v_s(rho) - volume_s * omega) * dx  # Responsive material 1(Blue)
-func4 = lagrange_r * (v_r(rho) - volume_r * omega) * dx  # Responsive material 2(Red)
+func2 = kappa_m_e * (func2_sub1 + func2_sub2 + func2_sub3)
 
 # Objective function + Modica-Mortola functional + Volume constraint
-P = func1 + func2 + func3 + func4
+P = func1 + func2
 JJ = J + P
 
 # Define the weak form for forward PDE
@@ -163,29 +161,21 @@ a_forward_s = h_s(rho) * inner(sigma_s(u, Id), epsilon(v)) * dx
 a_forward_r = h_r(rho) * inner(sigma_r(u, Id), epsilon(v)) * dx
 a_forward = a_forward_v + a_forward_s + a_forward_r
 
-L_forward = inner(f, v) * ds(8) + h_r(rho) * h_h(rho) * inner(sigma_a(Id, Id), epsilon(v)) * dx
+L_forward = inner(f, v) * ds(8)
 R_fwd = a_forward - L_forward
 
 # Define the Lagrangian
-a_lagrange_v = h_v(rho) * inner(sigma_v(u, Id), epsilon(p)) * dx
-a_lagrange_s = h_s(rho) * inner(sigma_s(u, Id), epsilon(p)) * dx
-a_lagrange_r = h_r(rho) * inner(sigma_r(u, Id), epsilon(p)) * dx
+# The problem is self-adjoint so we replace langrange multiplier(p) with u
+a_lagrange_v = h_v(rho) * inner(sigma_v(u, Id), epsilon(u)) * dx
+a_lagrange_s = h_s(rho) * inner(sigma_s(u, Id), epsilon(u)) * dx
+a_lagrange_r = h_r(rho) * inner(sigma_r(u, Id), epsilon(u)) * dx
 a_lagrange   = a_lagrange_v + a_lagrange_s + a_lagrange_r
 
-L_lagrange = inner(f, p) * ds(8) + h_r(rho) * h_h(rho) * inner(sigma_a(Id, Id), epsilon(p)) * dx
+L_lagrange = inner(f, u) * ds(8)
 R_lagrange = a_lagrange - L_lagrange
 L = JJ - R_lagrange
 
-
-# Define the weak form for adjoint PDE
-a_adjoint_v = h_v(rho) * inner(sigma_v(v, Id), epsilon(p)) * dx
-a_adjoint_s = h_s(rho) * inner(sigma_s(v, Id), epsilon(p)) * dx
-a_adjoint_r = h_r(rho) * inner(sigma_r(v, Id), epsilon(p)) * dx
-a_adjoint = a_adjoint_v + a_adjoint_s + a_adjoint_r
-
-L_adjoint = inner(u - u_star, v) * dx(4)
-R_adj = a_adjoint - L_adjoint
-
+# Beam .pvd file for saving designs
 beam = File(options.output + '/beam.pvd')
 
 def FormObjectiveGradient(tao, x, G):
@@ -193,12 +183,7 @@ def FormObjectiveGradient(tao, x, G):
 	i = tao.getIterationNumber()
 	if (i%20) == 0:
 		rho_i.interpolate(rho.sub(1) - rho.sub(0))
-		stimulus.interpolate(rho.sub(2))
-		beam.write(rho_i, stimulus, u, time = i)
-		# stimulus.write(stimulus, time = i)
-		# File(options.output + '/beam-{}.pvd'.format(i)).write(rho_i, u)
-		# File(options.output + '/stimulus-{}.pvd'.format(i)).write(rho.sub(2))
-
+		beam.write(rho_i, u, time = i)
 
 	with rho.dat.vec as rho_vec:
 		rho_vec.set(0.0)
@@ -207,9 +192,7 @@ def FormObjectiveGradient(tao, x, G):
 	# Solve forward PDE
 	solve(R_fwd == 0, u, bcs = bcs, solver_parameters={'snes_max_it': 500})
 
-	# Solve adjoint PDE
-	solve(R_adj == 0, p, bcs = bcs, solver_parameters={'snes_max_it': 500})
-
+    # Evaluate the objective function
 	objective_value = assemble(J)
 	print("The value of objective function is {}".format(objective_value))
 
