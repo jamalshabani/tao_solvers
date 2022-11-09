@@ -46,7 +46,6 @@ M = len(mesh_coordinates)
 
 rho =  Function(VV, name = "Design variable")
 rho_i = Function(V, name = "Material density")
-stimulus =  Function(V, name = "Stimulus variable")
 rho2 = Function(V, name = "Structural material")  # Structural material 1(Blue)
 rho3 = Function(V, name = "Responsive material")  # Responsive material 2(Red)
 
@@ -59,18 +58,16 @@ rho = as_vector([rho2, rho3])
 rho = interpolate(rho, VV)
 ###### End Initial Design #####
 
-# Define the constant parameters used in the problem
+# Define the constant parameter used in the problem
 kappa = Constant(options.kappa)
-# cw = Constant(pi/8)
-cw = Constant(1/6)  # Normalization parameter for Modica-Mortola
 
 # Total volume of the domain |omega|
 omega = assemble(interpolate(Constant(1.0), V) * dx)
 
 delta = Constant(1.0e-3)
 epsilon = Constant(options.epsilon)
-kappa_d_e = Constant(kappa / (epsilon * cw))
-kappa_m_e = Constant(kappa * epsilon / cw)
+kappa_d_e = Constant(kappa / epsilon)
+kappa_m_e = Constant(kappa * epsilon)
 
 # Define the boundary/traction force
 f = Constant((0, -1))
@@ -190,7 +187,7 @@ def FormObjectiveGradient(tao, x, G):
         rho_vec.axpy(1.0, x)
 
     # Solve forward PDE
-    solve(R_fwd == 0, u, bcs = bcs, solver_parameters={'snes_max_it': 500})
+    solve(R_fwd == 0, u, bcs = bcs)
 
     # Evaluate the objective function
     objective_value = assemble(J)
@@ -208,16 +205,9 @@ def FormObjectiveGradient(tao, x, G):
     # Compute gradiet w.r.t rho2 and rho3
     dJdrho2 = assemble(derivative(L, rho.sub(0)))
     dJdrho3 = assemble(derivative(L, rho.sub(1)))
-
-    # Gradient projection
-    dJdrho2_proj = dJdrho2 - assemble(dJdrho2 * dx)/omega
-    dJdrho3_proj = dJdrho3 - assemble(dJdrho3 * dx)/omega
     
-    dJdrho2_proj = interpolate(dJdrho2_proj, V)
-    dJdrho3_proj = interpolate(dJdrho3_proj, V)
-
-    dJdrho2_array = dJdrho2_proj.vector().array()
-    dJdrho3_array = dJdrho3_proj.vector().array()
+    dJdrho2_array = dJdrho2.vector().array()
+    dJdrho3_array = dJdrho3.vector().array()
 
     N = M * 2
     index_2 = []
@@ -251,9 +241,9 @@ with ub.dat.vec as ub_vec:
 
 # Setting TAO solver
 tao = PETSc.TAO().create(PETSc.COMM_SELF)
-tao.setType('cg')
+tao.setType('bncg')
 tao.setObjectiveGradient(FormObjectiveGradient, None)
-# tao.setVariableBounds(rho_lb, rho_ub)
+tao.setVariableBounds(rho_lb, rho_ub)
 tao.setFromOptions()
 
 # Initial design guess
