@@ -16,6 +16,7 @@ def parse():
     parser.add_argument('-es', '--esmodulus', type = float, default = 0.1, help = 'Elastic Modulus for structural material')
     parser.add_argument('-er', '--ermodulus', type = float, default = 1.0, help = 'Elastic Modulus for responsive material')
     parser.add_argument('-p', '--power_p', type = float, default = 2.0, help = 'Power for elasticity interpolation')
+    parser.add_argument('-q', '--power_q', type = float, default = 2.0, help = 'Power for multiple-well function')
     options = parser.parse_args()
     return options
 
@@ -43,7 +44,7 @@ VV = VectorFunctionSpace(mesh, 'CG', 1, dim = 2)
 mesh_coordinates = mesh.coordinates.dat.data[:]
 M = len(mesh_coordinates)
 
-rho =  Function(VVV, name = "Design variable")
+rho =  Function(VV, name = "Design variable")
 rho_i = Function(V, name = "Material density")
 stimulus =  Function(V, name = "Stimulus variable")
 rho2 = Function(V, name = "Structural material")  # Structural material 1(Blue)
@@ -67,7 +68,6 @@ cw = Constant(1/6)  # Normalization parameter for Modica-Mortola
 omega = assemble(interpolate(Constant(1.0), V) * dx)
 
 delta = Constant(1.0e-3)
-alpha = Constant(options.alpha)
 epsilon = Constant(options.epsilon)
 kappa_d_e = Constant(kappa / (epsilon * cw))
 kappa_m_e = Constant(kappa * epsilon / cw)
@@ -113,9 +113,9 @@ def h_r(rho):
 
 
 # Define the double-well potential function
-# W(x, y) = (x + y)^2 * (1 - x)^2 * (1 - y)^2
+# W(x, y) = (x + y)^q * (1 - x)^q * (1 - y)^q
 def W(rho):
-    return pow((rho.sub(0) + rho.sub(1)), 2) * pow((1 - rho.sub(0)), 2) * pow((1 - rho.sub(1)), 2)
+    return pow((rho.sub(0) + rho.sub(1)), options.power_q) * pow((1 - rho.sub(0)), options.power_q) * pow((1 - rho.sub(1)), options.power_q)
 
 # Define strain tensor epsilon(u)
 def epsilon(u):
@@ -181,13 +181,13 @@ beam = File(options.output + '/beam.pvd')
 def FormObjectiveGradient(tao, x, G):
 
     i = tao.getIterationNumber()
-    if (i%20) == 0:
-    rho_i.interpolate(rho.sub(1) - rho.sub(0))
-    beam.write(rho_i, u, time = i)
+    if (i%5) == 0:
+        rho_i.interpolate(rho.sub(1) - rho.sub(0))
+        beam.write(rho_i, u, time = i)
 
     with rho.dat.vec as rho_vec:
-    rho_vec.set(0.0)
-    rho_vec.axpy(1.0, x)
+        rho_vec.set(0.0)
+        rho_vec.axpy(1.0, x)
 
     # Solve forward PDE
     solve(R_fwd == 0, u, bcs = bcs, solver_parameters={'snes_max_it': 500})
@@ -209,28 +209,25 @@ def FormObjectiveGradient(tao, x, G):
     dJdrho2 = assemble(derivative(L, rho.sub(0)))
     dJdrho3 = assemble(derivative(L, rho.sub(1)))
 
-    print(type(dJdrho2))
-    print(assemble(dJdrho2 * dx))
+    # Gradient projection
+    dJdrho2_proj = interpolate((dJdrho2 - assemble(dJdrho2 * dx)/omega), V)
+    dJdrho3_proj = interpolate((dJdrho3 - assemble(dJdrho3 * dx)/omega), V)
 
-    dJdrho2_array = dJdrho2.vector().array()
-    dJdrho3_array = dJdrho3.vector().array()
+    dJdrho2_array = dJdrho2_proj.vector().array()
+    dJdrho3_array = dJdrho3_proj.vector().array()
 
-    N = M * 3
+    N = M * 2
     index_2 = []
     index_3 = []
-    index_s = []
 
     for i in range(N):
-    if (i%3) == 0:
-    index_2.append(i)
-    if (i%3) == 1:
-    index_3.append(i)
-    if (i%3) == 2:
-    index_s.append(i)
+        if (i%2) == 0:
+            index_2.append(i)
+        if (i%2) == 1:
+            index_3.append(i)
 
     G.setValues(index_2, dJdrho2_array)
     G.setValues(index_3, dJdrho3_array)
-    G.setValues(index_s, dJds_array)
 
     # print(G.view())
 
@@ -238,10 +235,10 @@ def FormObjectiveGradient(tao, x, G):
     return f_val
 
 # Setting lower and upper bounds
-lb = as_vector((0, 0, 0))
-ub = as_vector((1, 1, 1))
-lb = interpolate(lb, VVV)
-ub = interpolate(ub, VVV)
+lb = as_vector((0, 0))
+ub = as_vector((1, 1))
+lb = interpolate(lb, VV)
+ub = interpolate(ub, VV)
 
 with lb.dat.vec as lb_vec:
     rho_lb = lb_vec
@@ -251,9 +248,9 @@ with ub.dat.vec as ub_vec:
 
 # Setting TAO solver
 tao = PETSc.TAO().create(PETSc.COMM_SELF)
-tao.setType('blmvm')
+tao.setType('cg')
 tao.setObjectiveGradient(FormObjectiveGradient, None)
-tao.setVariableBounds(rho_lb, rho_ub)
+# tao.setVariableBounds(rho_lb, rho_ub)
 tao.setFromOptions()
 
 # Initial design guess
