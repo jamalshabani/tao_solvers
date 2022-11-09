@@ -1,23 +1,23 @@
 def parse():
-	import argparse
-	parser = argparse.ArgumentParser()
-	parser.add_argument('-tao_type', '--tao_type', type = str, default = 'blmvm', help = 'TAO algorithm type')
-	parser.add_argument('-tao_monitor', '--tao_monitor', action='store_true', help = 'TAO monitor')
-	parser.add_argument('-tao_max_it', '--tao_max_it', type = int, default = 100, help = 'Number of TAO iterations')
-	parser.add_argument('-tao_gatol', '--tao_gatol', type = float, default = 1.0e-7, help = 'Stop if norm of gradient is less than this')
-	parser.add_argument('-tao_grtol', '--tao_grtol', type = float, default = 1.0e-7, help = 'Stop if relative norm of gradient is less than this')
-	parser.add_argument('-tao_gttol', '--tao_gttol', type = float, default = 1.0e-7, help = 'Stop if norm of gradient is reduced by this factor')
-	parser.add_argument('-vs', '--volume_s', type = float, default = 0.4, help = 'Volume percentage for structural material')
-	parser.add_argument('-vr', '--volume_r', type = float, default = 0.4, help = 'Volume percentage for responsive material')
-	parser.add_argument('-k', '--kappa', type = float, default = 1.0e-2, help = 'Weight of Modica-Mortola')
-	parser.add_argument('-e', '--epsilon', type = float, default = 5.0e-3, help = 'Phase-field regularization parameter')
-	parser.add_argument('-o', '--output', type = str, default = 'output1', help = 'Output folder')
-	parser.add_argument('-m', '--mesh', type = str, default = '1_to_6_mesh', help = 'Dimensions of meshed beam')
-	parser.add_argument('-es', '--esmodulus', type = float, default = 0.1, help = 'Elastic Modulus for structural material')
-	parser.add_argument('-er', '--ermodulus', type = float, default = 1.0, help = 'Elastic Modulus for responsive material')
-	parser.add_argument('-p', '--power_p', type = float, default = 2.0, help = 'Power for elasticity interpolation')
-	options = parser.parse_args()
-	return options
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-tao_type', '--tao_type', type = str, default = 'blmvm', help = 'TAO algorithm type')
+    parser.add_argument('-tao_monitor', '--tao_monitor', action='store_true', help = 'TAO monitor')
+    parser.add_argument('-tao_max_it', '--tao_max_it', type = int, default = 100, help = 'Number of TAO iterations')
+    parser.add_argument('-tao_gatol', '--tao_gatol', type = float, default = 1.0e-7, help = 'Stop if norm of gradient is less than this')
+    parser.add_argument('-tao_grtol', '--tao_grtol', type = float, default = 1.0e-7, help = 'Stop if relative norm of gradient is less than this')
+    parser.add_argument('-tao_gttol', '--tao_gttol', type = float, default = 1.0e-7, help = 'Stop if norm of gradient is reduced by this factor')
+    parser.add_argument('-vs', '--volume_s', type = float, default = 0.4, help = 'Volume percentage for structural material')
+    parser.add_argument('-vr', '--volume_r', type = float, default = 0.4, help = 'Volume percentage for responsive material')
+    parser.add_argument('-k', '--kappa', type = float, default = 1.0e-2, help = 'Weight of Modica-Mortola')
+    parser.add_argument('-e', '--epsilon', type = float, default = 5.0e-3, help = 'Phase-field regularization parameter')
+    parser.add_argument('-o', '--output', type = str, default = 'output1', help = 'Output folder')
+    parser.add_argument('-m', '--mesh', type = str, default = '1_to_6_mesh', help = 'Dimensions of meshed beam')
+    parser.add_argument('-es', '--esmodulus', type = float, default = 0.1, help = 'Elastic Modulus for structural material')
+    parser.add_argument('-er', '--ermodulus', type = float, default = 1.0, help = 'Elastic Modulus for responsive material')
+    parser.add_argument('-p', '--power_p', type = float, default = 2.0, help = 'Power for elasticity interpolation')
+    options = parser.parse_args()
+    return options
 
 options = parse()
 
@@ -91,47 +91,47 @@ mu_r = E_r/(2 * (1 + nu))
 lambda_r = (E_r * nu)/((1 + nu) * (1 - 2 * nu))
 
 def v_v(rho):
-	return 1 - rho.sub(0) - rho.sub(1)
+    return 1 - rho.sub(0) - rho.sub(1)
 
 def v_s(rho):
-	return rho.sub(0)
+    return rho.sub(0)
 
 def v_r(rho):
-	return rho.sub(1)
+    return rho.sub(1)
 
 # Define h_v(rho)=rho_v^(p)
 def h_v(rho):
-	return pow((1 - rho.sub(0) - rho.sub(1)), options.power_p)
+    return pow((1 - rho.sub(0) - rho.sub(1)), options.power_p)
 
 # Define h_s(rho)=rho_s^(p)
 def h_s(rho):
-	return pow(rho.sub(0), options.power_p)
+    return pow(rho.sub(0), options.power_p)
 
 # Define h_r(rho)=rho_r^(p)
 def h_r(rho):
-	return pow(rho.sub(1), options.power_p)
+    return pow(rho.sub(1), options.power_p)
 
 
 # Define the double-well potential function
 # W(x, y) = (x + y)^2 * (1 - x)^2 * (1 - y)^2
 def W(rho):
-	return pow((rho.sub(0) + rho.sub(1)), 2) * pow((1 - rho.sub(0)), 2) * pow((1 - rho.sub(1)), 2)
+    return pow((rho.sub(0) + rho.sub(1)), 2) * pow((1 - rho.sub(0)), 2) * pow((1 - rho.sub(1)), 2)
 
 # Define strain tensor epsilon(u)
 def epsilon(u):
-	return 0.5 * (grad(u) + grad(u).T)
+    return 0.5 * (grad(u) + grad(u).T)
 
 # Define the stress tensor sigma_v(u) for void
 def sigma_v(u, Id):
-	return lambda_v * tr(epsilon(u)) * Id + 2 * mu_v * epsilon(u)
+    return lambda_v * tr(epsilon(u)) * Id + 2 * mu_v * epsilon(u)
 
 # Define the stress tensor sigma_s(u) for structural material
 def sigma_s(u, Id):
-	return lambda_s * tr(epsilon(u)) * Id + 2 * mu_s * epsilon(u)
+    return lambda_s * tr(epsilon(u)) * Id + 2 * mu_s * epsilon(u)
 
 # Define the stress tensor sigma_r(u) for responsive material
 def sigma_r(u, Id):
-	return lambda_r * tr(epsilon(u)) * Id + 2 * mu_r * epsilon(u)
+    return lambda_r * tr(epsilon(u)) * Id + 2 * mu_r * epsilon(u)
 
 # Define test function and beam displacement
 v = TestFunction(VV)
@@ -180,62 +180,62 @@ beam = File(options.output + '/beam.pvd')
 
 def FormObjectiveGradient(tao, x, G):
 
-	i = tao.getIterationNumber()
-	if (i%20) == 0:
-		rho_i.interpolate(rho.sub(1) - rho.sub(0))
-		beam.write(rho_i, u, time = i)
+    i = tao.getIterationNumber()
+    if (i%20) == 0:
+    rho_i.interpolate(rho.sub(1) - rho.sub(0))
+    beam.write(rho_i, u, time = i)
 
-	with rho.dat.vec as rho_vec:
-		rho_vec.set(0.0)
-		rho_vec.axpy(1.0, x)
+    with rho.dat.vec as rho_vec:
+    rho_vec.set(0.0)
+    rho_vec.axpy(1.0, x)
 
-	# Solve forward PDE
-	solve(R_fwd == 0, u, bcs = bcs, solver_parameters={'snes_max_it': 500})
+    # Solve forward PDE
+    solve(R_fwd == 0, u, bcs = bcs, solver_parameters={'snes_max_it': 500})
 
     # Evaluate the objective function
-	objective_value = assemble(J)
-	print("The value of objective function is {}".format(objective_value))
+    objective_value = assemble(J)
+    print("The value of objective function is {}".format(objective_value))
 
     # Print volume fraction of structural material
-	volume_s = assemble(v_s(rho) * dx)/omega
-	print("The volume fraction(Vs) is {}".format(volume_s))
+    volume_s = assemble(v_s(rho) * dx)/omega
+    print("The volume fraction(Vs) is {}".format(volume_s))
 
     # Print volume fraction of responsive material
-	volume_r = assemble(v_r(rho) * dx)/omega
-	print("The volume fraction(Vr) is {}".format(volume_r))
-	print(" ")
+    volume_r = assemble(v_r(rho) * dx)/omega
+    print("The volume fraction(Vr) is {}".format(volume_r))
+    print(" ")
 
     # Compute gradiet w.r.t rho2 and rho3
-	dJdrho2 = assemble(derivative(L, rho.sub(0)))
-	dJdrho3 = assemble(derivative(L, rho.sub(1)))
+    dJdrho2 = assemble(derivative(L, rho.sub(0)))
+    dJdrho3 = assemble(derivative(L, rho.sub(1)))
 
     print(type(dJdrho2))
     print(assemble(dJdrho2 * dx))
 
-	dJdrho2_array = dJdrho2.vector().array()
-	dJdrho3_array = dJdrho3.vector().array()
+    dJdrho2_array = dJdrho2.vector().array()
+    dJdrho3_array = dJdrho3.vector().array()
 
-	N = M * 3
-	index_2 = []
-	index_3 = []
-	index_s = []
+    N = M * 3
+    index_2 = []
+    index_3 = []
+    index_s = []
 
-	for i in range(N):
-		if (i%3) == 0:
-			index_2.append(i)
-		if (i%3) == 1:
-			index_3.append(i)
-		if (i%3) == 2:
-			index_s.append(i)
+    for i in range(N):
+    if (i%3) == 0:
+    index_2.append(i)
+    if (i%3) == 1:
+    index_3.append(i)
+    if (i%3) == 2:
+    index_s.append(i)
 
-	G.setValues(index_2, dJdrho2_array)
-	G.setValues(index_3, dJdrho3_array)
-	G.setValues(index_s, dJds_array)
+    G.setValues(index_2, dJdrho2_array)
+    G.setValues(index_3, dJdrho3_array)
+    G.setValues(index_s, dJds_array)
 
-	# print(G.view())
+    # print(G.view())
 
-	f_val = assemble(L)
-	return f_val
+    f_val = assemble(L)
+    return f_val
 
 # Setting lower and upper bounds
 lb = as_vector((0, 0, 0))
@@ -244,10 +244,10 @@ lb = interpolate(lb, VVV)
 ub = interpolate(ub, VVV)
 
 with lb.dat.vec as lb_vec:
-	rho_lb = lb_vec
+    rho_lb = lb_vec
 
 with ub.dat.vec as ub_vec:
-	rho_ub = ub_vec
+    rho_ub = ub_vec
 
 # Setting TAO solver
 tao = PETSc.TAO().create(PETSc.COMM_SELF)
@@ -258,7 +258,7 @@ tao.setFromOptions()
 
 # Initial design guess
 with rho.dat.vec as rho_vec:
-	x = rho_vec.copy()
+    x = rho_vec.copy()
 
 # Solve the optimization problem
 tao.solve(x)
@@ -266,7 +266,7 @@ tao.destroy()
 
 # Recover the final solution
 with rho.dat.vec as rho_vec:
-	rho_vec = x.copy()
+    rho_vec = x.copy()
 
 # Saving files for viewing with Paraview
 rho_final = Function(V, name = "Design variable")
