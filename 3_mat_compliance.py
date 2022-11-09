@@ -7,10 +7,8 @@ def parse():
 	parser.add_argument('-tao_gatol', '--tao_gatol', type = float, default = 1.0e-7, help = 'Stop if norm of gradient is less than this')
 	parser.add_argument('-tao_grtol', '--tao_grtol', type = float, default = 1.0e-7, help = 'Stop if relative norm of gradient is less than this')
 	parser.add_argument('-tao_gttol', '--tao_gttol', type = float, default = 1.0e-7, help = 'Stop if norm of gradient is reduced by this factor')
-	parser.add_argument('-ls', '--lagrange_s', type = float, default = 1.0, help = 'Lagrange multiplier for structural material')
-	parser.add_argument('-lr', '--lagrange_r', type = float, default = 0.1, help = 'Lagrange multiplier for responsive material')
 	parser.add_argument('-vs', '--volume_s', type = float, default = 0.4, help = 'Volume percentage for structural material')
-	parser.add_argument('-vr', '--volume_r', type = float, default = 0.3, help = 'Volume percentage for responsive material')
+	parser.add_argument('-vr', '--volume_r', type = float, default = 0.4, help = 'Volume percentage for responsive material')
 	parser.add_argument('-k', '--kappa', type = float, default = 1.0e-2, help = 'Weight of Modica-Mortola')
 	parser.add_argument('-e', '--epsilon', type = float, default = 5.0e-3, help = 'Phase-field regularization parameter')
 	parser.add_argument('-o', '--output', type = str, default = 'output1', help = 'Output folder')
@@ -18,9 +16,6 @@ def parse():
 	parser.add_argument('-es', '--esmodulus', type = float, default = 0.1, help = 'Elastic Modulus for structural material')
 	parser.add_argument('-er', '--ermodulus', type = float, default = 1.0, help = 'Elastic Modulus for responsive material')
 	parser.add_argument('-p', '--power_p', type = float, default = 2.0, help = 'Power for elasticity interpolation')
-	parser.add_argument('-a', '--alpha', type = float, default = 1.0e-3, help = 'Step length for stimulus decent')
-	parser.add_argument('-s', '--steamy', type = float, default = 1.0, help = 'Initial factor of steamy')
-	parser.add_argument('-f', '--force', type = float, default = 0.0, help = 'y-component boundary force')
 	options = parser.parse_args()
 	return options
 
@@ -38,9 +33,10 @@ mesh = Mesh(options.mesh)
 Id = Identity(mesh.geometric_dimension()) #Identity tensor
 
 # Define the function spaces
+# Try using DG0 function space
+
 V = FunctionSpace(mesh, 'CG', 1)
 VV = VectorFunctionSpace(mesh, 'CG', 1, dim = 2)
-VVV = VectorFunctionSpace(mesh, 'CG', 1, dim = 3)
 
 # Create initial design
 ###### Begin Initial Design #####
@@ -52,35 +48,19 @@ rho_i = Function(V, name = "Material density")
 stimulus =  Function(V, name = "Stimulus variable")
 rho2 = Function(V, name = "Structural material")  # Structural material 1(Blue)
 rho3 = Function(V, name = "Responsive material")  # Responsive material 2(Red)
-s = Function(V, name = "Stimulus factor sI")
-
-# Stimulus initial guess
-# s = Constant(options.steamy)
-# s_initial = project(s, V)
-# File(options.output + '/stimulus-initial.pvd').write(s_initial)
 
 x, y = SpatialCoordinate(mesh)
-rho2 = interpolate(Constant(0.5), V)
-rho2.interpolate(Constant(1.0), mesh.measure_set("cell", 4))
+rho2 = interpolate(Constant(options.volume_s), V)
+rho3 = interpolate(Constant(options.volume_r), V)
 
-rho3 = interpolate(Constant(0.4), V)
-rho3.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
 
-s = Constant(options.steamy)
-# rho2 = 0.75 + 0.75 * sin(4*pi*x) * sin(8*pi*y)
-# rho3 = 0.50 + 0.50 * sin(4*pi*x) * sin(8*pi*y)
-
-rho = as_vector([rho2, rho3, s])
-rho = interpolate(rho, VVV)
+rho = as_vector([rho2, rho3])
+rho = interpolate(rho, VV)
 ###### End Initial Design #####
 
 # Define the constant parameters used in the problem
 kappa = Constant(options.kappa)
-cw = Constant(pi/8)  # Normalization parameter
-lagrange_s = Constant(options.lagrange_s)
-lagrange_r = Constant(options.lagrange_r)
-volume_s = Constant(options.volume_s)
-volume_r = Constant(options.lagrange_r)
+cw = Constant(pi/8)  # Normalization parameter for Modica-Mortola
 
 # Total volume of the domain |omega|
 omega = assemble(interpolate(Constant(1.0), V) * dx)
@@ -90,11 +70,9 @@ alpha = Constant(options.alpha)
 epsilon = Constant(options.epsilon)
 kappa_d_e = Constant(kappa / (epsilon * cw))
 kappa_m_e = Constant(kappa * epsilon / cw)
-kappa_d_e_s = Constant(kappa * 10 / (epsilon * 2))
-kappa_m_e_s = Constant(kappa * 10 * epsilon / 2)
 
-f = Constant((0, options.force))
-u_star = Constant((0, 1.0))
+# Define the boundary/traction force
+f = Constant((0, -1))
 
 # Young's modulus of the beam and poisson ratio
 E_v = Constant(delta)
@@ -120,24 +98,23 @@ def v_s(rho):
 def v_r(rho):
 	return rho.sub(1)
 
-# Define h(x)=x^2
+# Define h_v(rho)=rho_v^(p)
 def h_v(rho):
 	return pow((1 - rho.sub(0) - rho.sub(1)), options.power_p)
 
-# Define h(x)=x^2
+# Define h_s(rho)=rho_s^(p)
 def h_s(rho):
 	return pow(rho.sub(0), options.power_p)
 
-# Define h(x)=x^2
+# Define h_r(rho)=rho_r^(p)
 def h_r(rho):
 	return pow(rho.sub(1), options.power_p)
 
-def h_h(rho):
-	return rho.sub(2)
 
-# Define W(x) function
+# Define the double-well potential function
+# W(x, y) = (x + y)^2 * (1 - x)^2 * (1 - y)^2
 def W(rho):
-	return (rho.sub(0) + rho.sub(1)) * (1 - rho.sub(0)) * (1 - rho.sub(1))
+	return pow((rho.sub(0) + rho.sub(1)), 2) * pow((1 - rho.sub(0)), 2) * pow((1 - rho.sub(1)), 2)
 
 def Ws(rho):
 	return (rho.sub(2) * (1 - rho.sub(2)))
