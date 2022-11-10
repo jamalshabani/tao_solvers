@@ -174,10 +174,12 @@ L = JJ - R_lagrange
 
 # Beam .pvd file for saving designs
 beam = File(options.output + '/beam.pvd')
+
 dJdrho2 = Function(V)
 dJdrho3 = Function(V)
 dJdrho2_project = Function(V)
 dJdrho3_project = Function(V)
+
 def FormObjectiveGradient(tao, x, G):
 
     i = tao.getIterationNumber()
@@ -208,15 +210,10 @@ def FormObjectiveGradient(tao, x, G):
     # Compute gradiet w.r.t rho2 and rho3
     dJdrho2.interpolate(assemble(derivative(L, rho.sub(0))))
     dJdrho3.interpolate(assemble(derivative(L, rho.sub(1))))
-    # dJdrho2 = derivative(L, rho.sub(0))
     # print(type(dJdrho2))
 
     dJdrho2_project.interpolate(dJdrho2 - assemble(dJdrho2 * dx)/omega)
     dJdrho3_project.interpolate(dJdrho3 - assemble(dJdrho3 * dx)/omega)
-
-    # print(assemble(dJdrho2_project * dx))
-    # print(assemble(dJdrho3_project * dx))
-    # print(omega)
 
     dJdrho2_array = dJdrho2_project.vector().array()
     dJdrho3_array = dJdrho3_project.vector().array()
