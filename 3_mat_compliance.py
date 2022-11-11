@@ -1,7 +1,7 @@
 def parse():
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('-tao_bncg_type', '-tao_bncg_type', type = str, default = 'blmvm', help = 'TAO algorithm type')
+    parser.add_argument('-tao_type', '-tao_type', type = str, default = 'blmvm', help = 'TAO algorithm type')
     parser.add_argument('-tao_monitor', '--tao_monitor', action='store_true', help = 'TAO monitor')
     parser.add_argument('-tao_max_it', '--tao_max_it', type = int, default = 100, help = 'Number of TAO iterations')
     parser.add_argument('-tao_gatol', '--tao_gatol', type = float, default = 1.0e-7, help = 'Stop if norm of gradient is less than this')
@@ -52,9 +52,11 @@ rho2 = Function(D1, name = "Structural material")  # Structural material 1(Blue)
 rho3 = Function(D1, name = "Responsive material")  # Responsive material 2(Red)
 
 x, y = SpatialCoordinate(mesh)
-rho2 = interpolate(Constant(options.volume_s), D1)
-rho3 = interpolate(Constant(options.volume_r), D1)
+rho2 = Constant(options.volume_s)
+rho3 = Constant(options.volume_r)
 
+rho2 = interpolate(rho2, D1)
+rho3 = interpolate(rho3, D1)
 
 rho = as_vector([rho2, rho3])
 rho = interpolate(rho, D2)
