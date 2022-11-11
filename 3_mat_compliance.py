@@ -1,7 +1,7 @@
 def parse():
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('-tao_type', '-tao_type', type = str, default = 'blmvm', help = 'TAO algorithm type')
+    parser.add_argument('-tao_type', '--tao_type', type = str, default = 'blmvm', help = 'TAO algorithm type')
     parser.add_argument('-tao_monitor', '--tao_monitor', action='store_true', help = 'TAO monitor')
     parser.add_argument('-tao_max_it', '--tao_max_it', type = int, default = 100, help = 'Number of TAO iterations')
     parser.add_argument('-tao_gatol', '--tao_gatol', type = float, default = 1.0e-7, help = 'Stop if norm of gradient is less than this')
@@ -36,37 +36,33 @@ Id = Identity(mesh.geometric_dimension()) #Identity tensor
 # Define the function spaces
 # Try using DG0 function space
 
-D1 = FunctionSpace(mesh, 'DG', 0)
-D2 = VectorFunctionSpace(mesh, 'DG', 0, dim = 2)
+V = FunctionSpace(mesh, 'CG', 1)
 VV = VectorFunctionSpace(mesh, 'CG', 1, dim = 2)
 
 # Create initial design
 ###### Begin Initial Design #####
 mesh_coordinates = mesh.coordinates.dat.data[:]
 M = len(mesh_coordinates)
-# print("Size of M =", M)
 
-rho =  Function(D2, name = "Design variable")
-rho_i = Function(D1, name = "Material density")
-rho2 = Function(D1, name = "Structural material")  # Structural material 1(Blue)
-rho3 = Function(D1, name = "Responsive material")  # Responsive material 2(Red)
+rho =  Function(VV, name = "Design variable")
+rho_i = Function(V, name = "Material density")
+rho2 = Function(V, name = "Structural material")  # Structural material 1(Blue)
+rho3 = Function(V, name = "Responsive material")  # Responsive material 2(Red)
 
 x, y = SpatialCoordinate(mesh)
-rho2 = Constant(options.volume_s)
-rho3 = Constant(options.volume_r)
+rho2 = interpolate(Constant(options.volume_s), V)
+rho3 = interpolate(Constant(options.volume_r), V)
 
-rho2 = interpolate(rho2, D1)
-rho3 = interpolate(rho3, D1)
 
 rho = as_vector([rho2, rho3])
-rho = interpolate(rho, D2)
+rho = interpolate(rho, VV)
 ###### End Initial Design #####
 
 # Define the constant parameter used in the problem
 kappa = Constant(options.kappa)
 
 # Total volume of the domain |omega|
-omega = assemble(Constant(1.0) * dx(domain = mesh))
+omega = assemble(interpolate(Constant(1.0), V) * dx)
 
 delta = Constant(1.0e-3)
 epsilon = Constant(options.epsilon)
@@ -144,11 +140,11 @@ bcs = DirichletBC(VV, Constant((0, 0)), 7)
 
 # Define the objective function
 J = inner(f, u) * ds(8)
-func1 = kappa_d_e * W(rho) * dx(domain = mesh)(domain = mesh)
+func1 = kappa_d_e * W(rho) * dx
 
-func2_sub1 = inner(grad(v_v(rho)), grad(v_v(rho))) * dx(domain = mesh)(domain = mesh)
-func2_sub2 = inner(grad(v_s(rho)), grad(v_s(rho))) * dx(domain = mesh)(domain = mesh)
-func2_sub3 = inner(grad(v_r(rho)), grad(v_r(rho))) * dx(domain = mesh)(domain = mesh)
+func2_sub1 = inner(grad(v_v(rho)), grad(v_v(rho))) * dx
+func2_sub2 = inner(grad(v_s(rho)), grad(v_s(rho))) * dx
+func2_sub3 = inner(grad(v_r(rho)), grad(v_r(rho))) * dx
 
 func2 = kappa_m_e * (func2_sub1 + func2_sub2 + func2_sub3)
 
@@ -157,9 +153,9 @@ P = func1 + func2
 JJ = J + P
 
 # Define the weak form for forward PDE
-a_forward_v = h_v(rho) * inner(sigma_v(u, Id), epsilon(v)) * dx(domain = mesh)(domain = mesh)
-a_forward_s = h_s(rho) * inner(sigma_s(u, Id), epsilon(v)) * dx(domain = mesh)(domain = mesh)
-a_forward_r = h_r(rho) * inner(sigma_r(u, Id), epsilon(v)) * dx(domain = mesh)(domain = mesh)
+a_forward_v = h_v(rho) * inner(sigma_v(u, Id), epsilon(v)) * dx
+a_forward_s = h_s(rho) * inner(sigma_s(u, Id), epsilon(v)) * dx
+a_forward_r = h_r(rho) * inner(sigma_r(u, Id), epsilon(v)) * dx
 a_forward = a_forward_v + a_forward_s + a_forward_r
 
 L_forward = inner(f, v) * ds(8)
@@ -167,9 +163,9 @@ R_fwd = a_forward - L_forward
 
 # Define the Lagrangian
 # The problem is self-adjoint so we replace langrange multiplier(p) with u
-a_lagrange_v = h_v(rho) * inner(sigma_v(u, Id), epsilon(u)) * dx(domain = mesh)(domain = mesh)
-a_lagrange_s = h_s(rho) * inner(sigma_s(u, Id), epsilon(u)) * dx(domain = mesh)(domain = mesh)
-a_lagrange_r = h_r(rho) * inner(sigma_r(u, Id), epsilon(u)) * dx(domain = mesh)(domain = mesh)
+a_lagrange_v = h_v(rho) * inner(sigma_v(u, Id), epsilon(u)) * dx
+a_lagrange_s = h_s(rho) * inner(sigma_s(u, Id), epsilon(u)) * dx
+a_lagrange_r = h_r(rho) * inner(sigma_r(u, Id), epsilon(u)) * dx
 a_lagrange   = a_lagrange_v + a_lagrange_s + a_lagrange_r
 
 L_lagrange = inner(f, u) * ds(8)
@@ -178,21 +174,21 @@ L = JJ - R_lagrange
 
 # Beam .pvd file for saving designs
 beam = File(options.output + '/beam.pvd')
+dJdrho2 = Function(V)
+dJdrho3 = Function(V)
+dJdrho2_project = Function(V)
+dJdrho3_project = Function(V)
 
-dJdrho2 = Function(D1)
-dJdrho3 = Function(D1)
-dJdrho2_project = Function(D1)
-dJdrho3_project = Function(D1)
-
+N = M * 2
 index_2 = []
 index_3 = []
 
-for i in range(62310):
+for i in range(N):
     if (i%2) == 0:
         index_2.append(i)
     if (i%2) == 1:
         index_3.append(i)
-
+    
 def FormObjectiveGradient(tao, x, G):
 
     i = tao.getIterationNumber()
@@ -204,8 +200,6 @@ def FormObjectiveGradient(tao, x, G):
         rho_vec.set(0.0)
         rho_vec.axpy(1.0, x)
 
-    # print("Size of x  = ", x.size)
-
     # Solve forward PDE
     solve(R_fwd == 0, u, bcs = bcs)
 
@@ -214,37 +208,35 @@ def FormObjectiveGradient(tao, x, G):
     print("The value of objective function is {}".format(objective_value))
 
     # Print volume fraction of structural material
-    volume_s = assemble(v_s(rho) * dx(domain = mesh)(domain = mesh))/omega
+    volume_s = assemble(v_s(rho) * dx)/omega
     print("The volume fraction(Vs) is {}".format(volume_s))
 
     # Print volume fraction of responsive material
-    volume_r = assemble(v_r(rho) * dx(domain = mesh))/omega
+    volume_r = assemble(v_r(rho) * dx)/omega
     print("The volume fraction(Vr) is {}".format(volume_r))
     print(" ")
 
     # Compute gradiet w.r.t rho2 and rho3
     dJdrho2.interpolate(assemble(derivative(L, rho.sub(0))))
     dJdrho3.interpolate(assemble(derivative(L, rho.sub(1))))
+    # dJdrho2 = derivative(L, rho.sub(0))
     # print(type(dJdrho2))
 
-    dJdrho2_project.interpolate(dJdrho2 - assemble(dJdrho2 * dx(domain = mesh))/omega)
-    dJdrho3_project.interpolate(dJdrho3 - assemble(dJdrho3 * dx(domain = mesh))/omega)
+    dJdrho2_project.interpolate(dJdrho2 - assemble(dJdrho2 * dx)/omega)
+    dJdrho3_project.interpolate(dJdrho3 - assemble(dJdrho3 * dx)/omega)
 
-    # print(assemble(dJdrho2_project * dx(domain = mesh)))
-    # print(assemble(dJdrho3_project * dx(domain = mesh)))
+    # print(assemble(dJdrho2_project * dx))
+    # print(assemble(dJdrho3_project * dx))
+    # print(omega)
 
     dJdrho2_array = dJdrho2_project.vector().array()
     dJdrho3_array = dJdrho3_project.vector().array()
 
     # Try to project G
-    # print("Size of G  = ", G.size)
 
     G.setValues(index_2, dJdrho2_array)
     G.setValues(index_3, dJdrho3_array)
 
-    # print(type(G))
-    # print(G.size)
-    #
     # print(G.view())
 
     f_val = assemble(L)
@@ -253,8 +245,8 @@ def FormObjectiveGradient(tao, x, G):
 # Setting lower and upper bounds
 lb = as_vector((0, 0))
 ub = as_vector((1, 1))
-lb = interpolate(lb, D2)
-ub = interpolate(ub, D2)
+lb = interpolate(lb, VV)
+ub = interpolate(ub, VV)
 
 with lb.dat.vec as lb_vec:
     rho_lb = lb_vec
@@ -273,11 +265,19 @@ tao.setFromOptions()
 with rho.dat.vec as rho_vec:
     x = rho_vec.copy()
 
-# print("Size of x  = ", x.size)
-# print(x.view())
 # Solve the optimization problem
 tao.solve(x)
 tao.destroy()
+
+# Recover the final solution
+with rho.dat.vec as rho_vec:
+    rho_vec = x.copy()
+
+# Saving files for viewing with Paraview
+rho_final = Function(V, name = "Design variable")
+rho_final = rho.sub(1) - rho.sub(0)
+rho_final = interpolate(rho_final, V)
+File(options.output + '/beam-final.pvd').write(rho_final, u)
 
 end = time.time()
 print("\nExecution time (in seconds):", (end - start))
