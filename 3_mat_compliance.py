@@ -36,33 +36,34 @@ Id = Identity(mesh.geometric_dimension()) #Identity tensor
 # Define the function spaces
 # Try using DG0 function space
 
-V = FunctionSpace(mesh, 'CG', 1)
-VV = VectorFunctionSpace(mesh, 'CG', 1, dim = 2)
+D1 = FunctionSpace(mesh, 'DG', 0)
+D2 = VectorFunctionSpace(mesh, 'DG', 0, dim = 2)
+VV = VectorFunctionSpace(mesh, 'CG', 2, dim = 2)
 
 # Create initial design
 ###### Begin Initial Design #####
 mesh_coordinates = mesh.coordinates.dat.data[:]
 M = len(mesh_coordinates)
 
-rho =  Function(VV, name = "Design variable")
-rho_i = Function(V, name = "Material density")
-rho2 = Function(V, name = "Structural material")  # Structural material 1(Blue)
-rho3 = Function(V, name = "Responsive material")  # Responsive material 2(Red)
+rho =  Function(D2, name = "Design variable")
+rho_i = Function(D1, name = "Material density")
+rho2 = Function(D1, name = "Structural material")  # Structural material 1(Blue)
+rho3 = Function(D1, name = "Responsive material")  # Responsive material 2(Red)
 
 x, y = SpatialCoordinate(mesh)
-rho2 = interpolate(Constant(options.volume_s), V)
-rho3 = interpolate(Constant(options.volume_r), V)
+rho2 = interpolate(Constant(options.volume_s), D1)
+rho3 = interpolate(Constant(options.volume_r), D1)
 
 
 rho = as_vector([rho2, rho3])
-rho = interpolate(rho, VV)
+rho = interpolate(rho, D2)
 ###### End Initial Design #####
 
 # Define the constant parameter used in the problem
 kappa = Constant(options.kappa)
 
 # Total volume of the domain |omega|
-omega = assemble(interpolate(Constant(1.0), V) * dx)
+omega = assemble(Constant(1.0) * dx(domain = mesh))
 
 delta = Constant(1.0e-3)
 epsilon = Constant(options.epsilon)
@@ -175,10 +176,10 @@ L = JJ - R_lagrange
 # Beam .pvd file for saving designs
 beam = File(options.output + '/beam.pvd')
 
-dJdrho2 = Function(V)
-dJdrho3 = Function(V)
-dJdrho2_project = Function(V)
-dJdrho3_project = Function(V)
+dJdrho2 = Function(D1)
+dJdrho3 = Function(D1)
+dJdrho2_project = Function(D1)
+dJdrho3_project = Function(D1)
 
 def FormObjectiveGradient(tao, x, G):
 
@@ -241,8 +242,8 @@ def FormObjectiveGradient(tao, x, G):
 # Setting lower and upper bounds
 lb = as_vector((0, 0))
 ub = as_vector((1, 1))
-lb = interpolate(lb, VV)
-ub = interpolate(ub, VV)
+lb = interpolate(lb, D2)
+ub = interpolate(ub, D2)
 
 with lb.dat.vec as lb_vec:
     rho_lb = lb_vec
@@ -268,12 +269,6 @@ tao.destroy()
 # Recover the final solution
 with rho.dat.vec as rho_vec:
     rho_vec = x.copy()
-
-# Saving files for viewing with Paraview
-rho_final = Function(V, name = "Design variable")
-rho_final = rho.sub(1) - rho.sub(0)
-rho_final = interpolate(rho_final, V)
-File(options.output + '/beam-final.pvd').write(rho_final, u)
 
 end = time.time()
 print("\nExecution time (in seconds):", (end - start))
