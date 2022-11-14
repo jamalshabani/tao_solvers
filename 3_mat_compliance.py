@@ -1,8 +1,12 @@
 def parse():
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('-tao_type', '--tao_type', type = str, default = 'blmvm', help = 'TAO algorithm type')
-    parser.add_argument('-tao_monitor', '--tao_monitor', action='store_true', help = 'TAO monitor')
+    parser.add_argument('-tao_bncg_type', '--tao_bncg_type', type = str, default = 'ssml_bfgs', help = 'BNCG algorithm type')
+    parser.add_argument('-tao_bncg_alpha', '--tao_bncg_alpha', type = float, default = 0.5, help = 'Scalar preconditioning')
+    parser.add_argument('-tao_monitor', '--tao_monitor', action = 'store_true', help = 'TAO monitor')
+    parser.add_argument('-tao_converged_reason', '--tao_converged_reason', action = 'store_true', help = 'TAO convergence reason')
+    parser.add_argument('-tao_ls_type', '--tao_ls_type', type = str, default = 'more-thuente', help = "TAO line search")
+    parser.add_argument('-tao_view', '--tao_view', action = 'store_true', help = "View convergence details")
     parser.add_argument('-tao_max_it', '--tao_max_it', type = int, default = 100, help = 'Number of TAO iterations')
     parser.add_argument('-tao_gatol', '--tao_gatol', type = float, default = 1.0e-7, help = 'Stop if norm of gradient is less than this')
     parser.add_argument('-tao_grtol', '--tao_grtol', type = float, default = 1.0e-7, help = 'Stop if relative norm of gradient is less than this')
@@ -188,7 +192,7 @@ for i in range(N):
         index_2.append(i)
     if (i%2) == 1:
         index_3.append(i)
-    
+
 def FormObjectiveGradient(tao, x, G):
 
     i = tao.getIterationNumber()
@@ -204,8 +208,8 @@ def FormObjectiveGradient(tao, x, G):
     solve(R_fwd == 0, u, bcs = bcs)
 
     # Evaluate the objective function
-    objective_value = assemble(J)
-    print("The value of objective function is {}".format(objective_value))
+    # objective_value = assemble(J)
+    # print("The value of objective function is {}".format(objective_value))
 
     # Print volume fraction of structural material
     volume_s = assemble(v_s(rho) * dx)/omega
@@ -239,7 +243,7 @@ def FormObjectiveGradient(tao, x, G):
 
     # print(G.view())
 
-    f_val = assemble(L)
+    f_val = assemble(J)
     return f_val
 
 # Setting lower and upper bounds
@@ -268,16 +272,6 @@ with rho.dat.vec as rho_vec:
 # Solve the optimization problem
 tao.solve(x)
 tao.destroy()
-
-# Recover the final solution
-with rho.dat.vec as rho_vec:
-    rho_vec = x.copy()
-
-# Saving files for viewing with Paraview
-rho_final = Function(V, name = "Design variable")
-rho_final = rho.sub(1) - rho.sub(0)
-rho_final = interpolate(rho_final, V)
-File(options.output + '/beam-final.pvd').write(rho_final, u)
 
 end = time.time()
 print("\nExecution time (in seconds):", (end - start))
