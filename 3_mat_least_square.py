@@ -1,8 +1,7 @@
 def parse():
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('-tao_bncg_type', '--tao_bncg_type', type = str, default = 'ssml_bfgs', help = 'BNCG algorithm type')
-    parser.add_argument('-tao_bncg_alpha', '--tao_bncg_alpha', type = float, default = 0.5, help = 'Scalar preconditioning')
+    parser.add_argument('-tao_type', '--tao_type', type = str, default = 'bncg', help = 'TAO algorithm type')
     parser.add_argument('-tao_monitor', '--tao_monitor', action = 'store_true', help = 'TAO monitor')
     parser.add_argument('-tao_converged_reason', '--tao_converged_reason', action = 'store_true', help = 'TAO convergence reason')
     parser.add_argument('-tao_ls_type', '--tao_ls_type', type = str, default = 'more-thuente', help = "TAO line search")
@@ -147,7 +146,7 @@ p = Function(VV, name = "Adjoint variable")
 bcs = DirichletBC(VV, Constant((0, 0)), 7)
 
 # Define the objective function
-J = 0.5 * inner(u - u_star, u - u_star) * dx(4)
+J = inner(u - u_star, u - u_star) * dx(4)
 func1 = kappa_d_e * W(rho) * dx
 
 func2_sub1 = inner(grad(v_v(rho)), grad(v_v(rho))) * dx
@@ -186,7 +185,7 @@ a_adjoint_s = h_s(rho) * inner(sigma_s(v, Id), epsilon(p)) * dx
 a_adjoint_r = h_r(rho) * inner(sigma_r(v, Id), epsilon(p)) * dx
 a_adjoint = a_adjoint_v + a_adjoint_s + a_adjoint_r
 
-L_adjoint = inner(u - u_star, v) * dx(4)
+L_adjoint = 2 * inner(u - u_star, v) * dx(4)
 R_adj = a_adjoint - L_adjoint
 
 # Beam .pvd file for saving designs
@@ -242,8 +241,6 @@ def FormObjectiveGradient(tao, x, G):
 
     dJdrho3.interpolate(assemble(derivative(L, rho.sub(1))))
     dJdrho3.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
-    # dJdrho2 = derivative(L, rho.sub(0))
-    # print(type(dJdrho2))
 
     dJdrho2_project.interpolate(dJdrho2 - assemble(dJdrho2 * dx)/omega)
     dJdrho2_project.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
@@ -251,21 +248,13 @@ def FormObjectiveGradient(tao, x, G):
     dJdrho3_project.interpolate(dJdrho3 - assemble(dJdrho3 * dx)/omega)
     dJdrho3_project.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
 
-    # print(assemble(dJdrho2_project * dx))
-    # print(assemble(dJdrho3_project * dx))
-    # print(omega)
-
     dJdrho2_array = dJdrho2_project.vector().array()
     dJdrho3_array = dJdrho3_project.vector().array()
-
-    # Try to project G
 
     G.setValues(index_2, dJdrho2_array)
     G.setValues(index_3, dJdrho3_array)
 
-    # print(G.view())
-
-    f_val = assemble(J)
+    f_val = assemble(L)
     return f_val
 
 # Setting lower and upper bounds
