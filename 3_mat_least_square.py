@@ -3,6 +3,7 @@ def parse():
     parser = argparse.ArgumentParser()
     parser.add_argument('-tao_type', '--tao_type', type = str, default = 'bncg', help = 'TAO algorithm type')
     parser.add_argument('-tao_monitor', '--tao_monitor', action = 'store_true', help = 'TAO monitor')
+    parser.add_argument('-tao_bncg_alpha', '--tao_bncg_alpha', type = float, default = 0.5, help = 'Scalar preconditioning')
     parser.add_argument('-tao_converged_reason', '--tao_converged_reason', action = 'store_true', help = 'TAO convergence reason')
     parser.add_argument('-tao_ls_type', '--tao_ls_type', type = str, default = 'more-thuente', help = "TAO line search")
     parser.add_argument('-tao_view', '--tao_view', action = 'store_true', help = "View convergence details")
@@ -54,10 +55,10 @@ rho3 = Function(V, name = "Responsive material")  # Responsive material 2(Red)
 
 x, y = SpatialCoordinate(mesh)
 rho2.interpolate(Constant(options.volume_s))
-rho2.interpolate(Constant(1.0), mesh.measure_set("cell", 4))
+#rho2.interpolate(Constant(1.0), mesh.measure_set("cell", 4))
 
 rho3.interpolate(Constant(options.volume_r))
-rho3.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
+# rho3.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
 
 
 rho = as_vector([rho2, rho3])
@@ -207,7 +208,25 @@ for i in range(N):
     if (i%2) == 1:
         index_3.append(i)
 
+# Print volume fraction of structural material
+volume_s = assemble(v_s(rho) * dx)/omega
+print(volume_s)
+print("The volume fraction(Vs) is {}".format(volume_s))
+
+# Print volume fraction of responsive material
+volume_r = assemble(v_r(rho) * dx)/omega
+print("The volume fraction(Vr) is {}".format(volume_r))
+print(" ")
 def FormObjectiveGradient(tao, x, G):
+
+    # Print volume fraction of structural material
+    volume_s = assemble(v_s(rho) * dx)/omega
+    print("The volume fraction(Vs) is {}".format(volume_s))
+
+    # Print volume fraction of responsive material
+    volume_r = assemble(v_r(rho) * dx)/omega
+    print("The volume fraction(Vr) is {}".format(volume_r))
+    print(" ")
 
     i = tao.getIterationNumber()
     if (i%5) == 0:
@@ -228,30 +247,21 @@ def FormObjectiveGradient(tao, x, G):
     # objective_value = assemble(J)
     # print("The value of objective function is {}".format(objective_value))
 
-    # Print volume fraction of structural material
-    volume_s = assemble(v_s(rho) * dx)/omega
-    print("The volume fraction(Vs) is {}".format(volume_s))
-
-    # Print volume fraction of responsive material
-    volume_r = assemble(v_r(rho) * dx)/omega
-    print("The volume fraction(Vr) is {}".format(volume_r))
-    print(" ")
-
     # Compute gradiet w.r.t rho2 and rho3
     dJdrho2.interpolate(assemble(derivative(L, rho.sub(0))))
-    dJdrho2.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
+    #dJdrho2.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
 
     dJdrho3.interpolate(assemble(derivative(L, rho.sub(1))))
-    dJdrho3.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
+    #dJdrho3.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
 
     dJdrho2_norm.interpolate(Constant(1/omega) * Constant(assemble(dJdrho2 * dx)))
     dJdrho3_norm.interpolate(Constant(1/omega) * Constant(assemble(dJdrho3 * dx)))
 
     dJdrho2_project.interpolate(dJdrho2 - dJdrho2_norm)
-    dJdrho2_project.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
+    #dJdrho2_project.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
 
     dJdrho3_project.interpolate(dJdrho3 - dJdrho3_norm)
-    dJdrho3_project.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
+    #dJdrho3_project.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
 
     G.setValues(index_2, dJdrho2_project.vector().array())
     G.setValues(index_3, dJdrho3_project.vector().array())
