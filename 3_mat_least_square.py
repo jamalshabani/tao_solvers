@@ -146,7 +146,7 @@ p = Function(VV, name = "Adjoint variable")
 bcs = DirichletBC(VV, Constant((0, 0)), 7)
 
 # Define the objective function
-J = inner(u - u_star, u - u_star) * dx(4)
+J = 0.5 * inner(u - u_star, u - u_star) * dx(4)
 func1 = kappa_d_e * W(rho) * dx
 
 func2_sub1 = inner(grad(v_v(rho)), grad(v_v(rho))) * dx
@@ -155,7 +155,7 @@ func2_sub3 = inner(grad(v_r(rho)), grad(v_r(rho))) * dx
 
 func2 = kappa_m_e * (func2_sub1 + func2_sub2 + func2_sub3)
 
-# Objective function + Modica-Mortola functional + Volume constraint
+# Objective function + Modica-Mortola functional
 P = func1 + func2
 JJ = J + P
 
@@ -185,7 +185,7 @@ a_adjoint_s = h_s(rho) * inner(sigma_s(v, Id), epsilon(p)) * dx
 a_adjoint_r = h_r(rho) * inner(sigma_r(v, Id), epsilon(p)) * dx
 a_adjoint = a_adjoint_v + a_adjoint_s + a_adjoint_r
 
-L_adjoint = 2 * inner(u - u_star, v) * dx(4)
+L_adjoint = inner(u - u_star, v) * dx(4)
 R_adj = a_adjoint - L_adjoint
 
 # Beam .pvd file for saving designs
@@ -194,6 +194,8 @@ dJdrho2 = Function(V)
 dJdrho3 = Function(V)
 dJdrho2_project = Function(V)
 dJdrho3_project = Function(V)
+dJdrho2_norm = Function(V)
+dJdrho3_norm = Function(V)
 
 N = M * 2
 index_2 = []
@@ -242,17 +244,17 @@ def FormObjectiveGradient(tao, x, G):
     dJdrho3.interpolate(assemble(derivative(L, rho.sub(1))))
     dJdrho3.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
 
-    dJdrho2_project.interpolate(dJdrho2 - assemble(dJdrho2 * dx)/omega)
+    dJdrho2_norm.interpolate(Constant(1/omega) * Constant(assemble(dJdrho2 * dx)))
+    dJdrho3_norm.interpolate(Constant(1/omega) * Constant(assemble(dJdrho3 * dx)))
+
+    dJdrho2_project.interpolate(dJdrho2 - dJdrho2_norm)
     dJdrho2_project.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
 
-    dJdrho3_project.interpolate(dJdrho3 - assemble(dJdrho3 * dx)/omega)
+    dJdrho3_project.interpolate(dJdrho3 - dJdrho3_norm)
     dJdrho3_project.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
 
-    dJdrho2_array = dJdrho2_project.vector().array()
-    dJdrho3_array = dJdrho3_project.vector().array()
-
-    G.setValues(index_2, dJdrho2_array)
-    G.setValues(index_3, dJdrho3_array)
+    G.setValues(index_2, dJdrho2_project.vector().array())
+    G.setValues(index_3, dJdrho3_project.vector().array())
 
     f_val = assemble(L)
     return f_val
