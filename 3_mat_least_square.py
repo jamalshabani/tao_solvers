@@ -2,7 +2,7 @@ def parse():
 	import argparse
 	parser = argparse.ArgumentParser()
 	parser.add_argument('-tao_type', '--tao_type', type = str, default = 'bncg', help = 'TAO algorithm type')
-	parser.add_argument('-tao_bncg_type', '--tao_bncg_type', type = str, default = 'gd', help = 'TAO algorithm type')
+	#parser.add_argument('-tao_bncg_type', '--tao_bncg_type', type = str, default = 'gd', help = 'TAO algorithm type')
 	parser.add_argument('-tao_monitor', '--tao_monitor', action = 'store_true', help = 'TAO monitor')
 	parser.add_argument('-ls', '--lagrange_s', type = float, default = 5.0, help = 'Lagrange multiplier for structural material')
 	parser.add_argument('-lr', '--lagrange_r', type = float, default = 0.5, help = 'Lagrange multiplier for responsive material')
@@ -163,7 +163,7 @@ func3 = Constant(options.lagrange_s) * v_s(rho) * dx
 func4 = Constant(options.lagrange_r) * v_r(rho) * dx
 
 # Objective function + Modica-Mortola functional
-P = func1 + func2 + func3 +  func4
+P = func1 + func2
 JJ = J + P
 
 # Define the weak form for forward PDE
