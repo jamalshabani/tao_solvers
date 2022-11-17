@@ -1,29 +1,25 @@
 def parse():
 	import argparse
 	parser = argparse.ArgumentParser()
-	parser.add_argument('-tao_type', '--tao_type', type = str, default = 'bncg', help = 'TAO algorithm type')
-	parser.add_argument('-tao_bncg_type', '--tao_bncg_type', type = str, default = 'gd', help = 'TAO algorithm type')
-	parser.add_argument('-tao_monitor', '--tao_monitor', action = 'store_true', help = 'TAO monitor')
-	parser.add_argument('-ls', '--lagrange_s', type = float, default = 5.0, help = 'Lagrange multiplier for structural material')
-	parser.add_argument('-lr', '--lagrange_r', type = float, default = 0.5, help = 'Lagrange multiplier for responsive material')
-	parser.add_argument('-tao_bncg_alpha', '--tao_bncg_alpha', type = float, default = 0.5, help = 'Scalar preconditioning')
-	parser.add_argument('-tao_converged_reason', '--tao_converged_reason', action = 'store_true', help = 'TAO convergence reason')
-	parser.add_argument('-tao_ls_type', '--tao_ls_type', type = str, default = 'more-thuente', help = "TAO line search")
-	parser.add_argument('-tao_view', '--tao_view', action = 'store_true', help = "View convergence details")
+	parser.add_argument('-tao_type', '--tao_type', type = str, default = 'blmvm', help = 'TAO algorithm type')
+	parser.add_argument('-tao_monitor', '--tao_monitor', action='store_true', help = 'TAO monitor')
 	parser.add_argument('-tao_max_it', '--tao_max_it', type = int, default = 100, help = 'Number of TAO iterations')
 	parser.add_argument('-tao_gatol', '--tao_gatol', type = float, default = 1.0e-7, help = 'Stop if norm of gradient is less than this')
 	parser.add_argument('-tao_grtol', '--tao_grtol', type = float, default = 1.0e-7, help = 'Stop if relative norm of gradient is less than this')
 	parser.add_argument('-tao_gttol', '--tao_gttol', type = float, default = 1.0e-7, help = 'Stop if norm of gradient is reduced by this factor')
+	parser.add_argument('-ls', '--lagrange_s', type = float, default = 1.0, help = 'Lagrange multiplier for structural material')
+	parser.add_argument('-lr', '--lagrange_r', type = float, default = 0.1, help = 'Lagrange multiplier for responsive material')
 	parser.add_argument('-vs', '--volume_s', type = float, default = 0.4, help = 'Volume percentage for structural material')
-	parser.add_argument('-vr', '--volume_r', type = float, default = 0.4, help = 'Volume percentage for responsive material')
+	parser.add_argument('-vr', '--volume_r', type = float, default = 0.3, help = 'Volume percentage for responsive material')
 	parser.add_argument('-k', '--kappa', type = float, default = 1.0e-2, help = 'Weight of Modica-Mortola')
 	parser.add_argument('-e', '--epsilon', type = float, default = 5.0e-3, help = 'Phase-field regularization parameter')
 	parser.add_argument('-o', '--output', type = str, default = 'output1', help = 'Output folder')
-	parser.add_argument('-m', '--mesh', type = str, default = 'motion_mesh1.msh', help = 'Dimensions of meshed beam')
+	parser.add_argument('-m', '--mesh', type = str, default = 'main.msh', help = 'Dimensions of meshed beam')
 	parser.add_argument('-es', '--esmodulus', type = float, default = 0.1, help = 'Elastic Modulus for structural material')
 	parser.add_argument('-er', '--ermodulus', type = float, default = 1.0, help = 'Elastic Modulus for responsive material')
 	parser.add_argument('-p', '--power_p', type = float, default = 2.0, help = 'Power for elasticity interpolation')
-	parser.add_argument('-q', '--power_q', type = float, default = 2.0, help = 'Power for multiple-well function')
+	parser.add_argument('-a', '--alpha', type = float, default = 1.0e-3, help = 'Step length for stimulus decent')
+	parser.add_argument('-s', '--steamy', type = float, default = 1.0, help = 'Initial factor of steamy')
 	options = parser.parse_args()
 	return options
 
@@ -37,49 +33,59 @@ import numpy as np
 start = time.time()
 
 # Import gmesh
-mesh = Mesh(options.mesh)
+mesh = Mesh("motion_mesh.msh")
 Id = Identity(mesh.geometric_dimension()) #Identity tensor
 
 # Define the function spaces
-# Try using DG0 function space
-
 V = FunctionSpace(mesh, 'CG', 1)
 VV = VectorFunctionSpace(mesh, 'CG', 1, dim = 2)
 
 # Create initial design
 ###### Begin Initial Design #####
 mesh_coordinates = mesh.coordinates.dat.data[:]
+
 M = len(mesh_coordinates)
+rho2_array = np.ones(M) # Blue material
+rho3_array = np.zeros(M) # Red material
 
 rho =  Function(VV, name = "Design variable")
-rho_i = Function(V, name = "Material density")
 rho2 = Function(V, name = "Structural material")  # Structural material 1(Blue)
 rho3 = Function(V, name = "Responsive material")  # Responsive material 2(Red)
 
 x, y = SpatialCoordinate(mesh)
-rho2.interpolate(Constant(options.volume_s))
-rho2.interpolate(Constant(1.0), mesh.measure_set("cell", 4))
-
-rho3.interpolate(Constant(options.volume_r))
-rho3.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
-
+rho2 = Constant(0.4)
+rho3 = Constant(0.5)
+# rho2 = 0.75 + 0.75 * sin(4*pi*x) * sin(8*pi*y)
+# rho3 = 0.50 + 0.50 * sin(4*pi*x) * sin(8*pi*y)
 
 rho = as_vector([rho2, rho3])
 rho = interpolate(rho, VV)
+
+rho_initial = Function(V)
+rho_initial =  rho3 - rho2
+rho_initial = interpolate(rho_initial, V)
+File(options.output + '/rho_initial.pvd').write(rho_initial)
+# Create initial design
 ###### End Initial Design #####
 
-# Define the constant parameter used in the problem
+# Define the constant parameters used in the problem
 kappa = Constant(options.kappa)
+cw = Constant(pi/8)  # Normalization parameter
+lagrange_s = Constant(options.lagrange_s)
+lagrange_r = Constant(options.lagrange_r)
+volume_s = Constant(options.volume_s)
+volume_r = Constant(options.lagrange_r)
 
 # Total volume of the domain |omega|
 omega = assemble(interpolate(Constant(1.0), V) * dx)
 
-delta = Constant(1.0e-5)
+delta = Constant(1.0e-3)
+alpha = Constant(options.alpha)
+s = Constant(options.steamy)
 epsilon = Constant(options.epsilon)
-kappa_d_e = Constant(kappa / epsilon)
-kappa_m_e = Constant(kappa * epsilon)
+kappa_d_e = Constant(kappa / (epsilon * cw))
+kappa_m_e = Constant(kappa * epsilon / cw)
 
-# Define the boundary/traction force
 f = Constant((0, -1.0))
 u_star = Constant((0, 1.0))
 
@@ -107,37 +113,40 @@ def v_s(rho):
 def v_r(rho):
 	return rho.sub(1)
 
-# Define h_v(rho)=rho_v^(p)
+# Define h(x)=x^2
 def h_v(rho):
 	return pow((1 - rho.sub(0) - rho.sub(1)), options.power_p)
 
-# Define h_s(rho)=rho_s^(p)
+# Define h(x)=x^2
 def h_s(rho):
 	return pow(rho.sub(0), options.power_p)
 
-# Define h_r(rho)=rho_r^(p)
+# Define h(x)=x^2
 def h_r(rho):
 	return pow(rho.sub(1), options.power_p)
 
-
-# Define the double-well potential function
-# W(x, y) = (x + y)^q * (1 - x)^q * (1 - y)^q
+# Define W(x) function
 def W(rho):
-	return pow((rho.sub(0) + rho.sub(1)), options.power_q) * pow((1 - rho.sub(0)), options.power_q) * pow((1 - rho.sub(1)), options.power_q)
+	return (rho.sub(0) + rho.sub(1)) * (1 - rho.sub(0)) * (1 - rho.sub(1))
 
-# Define strain tensor epsilon(u)
+# Define stress and strain tensors
 def epsilon(u):
 	return 0.5 * (grad(u) + grad(u).T)
 
-# Define the stress tensor sigma_v(u) for void
+# Stimulus initial guess
+S =  s * Id
+s_initial = project(s, V)
+File(options.output + '/stimulus-initial.pvd').write(s_initial)
+
+def sigma_a(A, Id):
+	return lambda_r * tr(A) * Id + 2 * mu_r * A
+
 def sigma_v(u, Id):
 	return lambda_v * tr(epsilon(u)) * Id + 2 * mu_v * epsilon(u)
 
-# Define the stress tensor sigma_s(u) for structural material
 def sigma_s(u, Id):
 	return lambda_s * tr(epsilon(u)) * Id + 2 * mu_s * epsilon(u)
 
-# Define the stress tensor sigma_r(u) for responsive material
 def sigma_r(u, Id):
 	return lambda_r * tr(epsilon(u)) * Id + 2 * mu_r * epsilon(u)
 
@@ -158,12 +167,11 @@ func2_sub2 = inner(grad(v_s(rho)), grad(v_s(rho))) * dx
 func2_sub3 = inner(grad(v_r(rho)), grad(v_r(rho))) * dx
 
 func2 = kappa_m_e * (func2_sub1 + func2_sub2 + func2_sub3)
+func3 = lagrange_s * (v_s(rho) - volume_s * omega) * dx  # Responsive material 1(Blue)
+func4 = lagrange_r * (v_r(rho) - volume_r * omega) * dx  # Responsive material 2(Red)
 
-func3 = Constant(options.lagrange_s) * v_s(rho) * dx
-func4 = Constant(options.lagrange_r) * v_r(rho) * dx
-
-# Objective function + Modica-Mortola functional
-P = func1 + func2 + func3 +  func4
+# Objective function + Modica-Mortola functional + Volume constraint
+P = func1 + func2 + func3 + func4
 JJ = J + P
 
 # Define the weak form for forward PDE
@@ -172,19 +180,19 @@ a_forward_s = h_s(rho) * inner(sigma_s(u, Id), epsilon(v)) * dx
 a_forward_r = h_r(rho) * inner(sigma_r(u, Id), epsilon(v)) * dx
 a_forward = a_forward_v + a_forward_s + a_forward_r
 
-L_forward = inner(f, v) * ds(8)
+L_forward = inner(f, v) * ds(8) + h_r(rho) * inner(sigma_a(S, Id), epsilon(v)) * dx
 R_fwd = a_forward - L_forward
 
 # Define the Lagrangian
-# The problem is self-adjoint so we replace langrange multiplier(p) with u
 a_lagrange_v = h_v(rho) * inner(sigma_v(u, Id), epsilon(p)) * dx
 a_lagrange_s = h_s(rho) * inner(sigma_s(u, Id), epsilon(p)) * dx
 a_lagrange_r = h_r(rho) * inner(sigma_r(u, Id), epsilon(p)) * dx
 a_lagrange   = a_lagrange_v + a_lagrange_s + a_lagrange_r
 
-L_lagrange = inner(f, p) * ds(8)
+L_lagrange = inner(f, p) * ds(8) + h_r(rho) * inner(sigma_a(S, Id), epsilon(p)) * dx
 R_lagrange = a_lagrange - L_lagrange
 L = JJ - R_lagrange
+
 
 # Define the weak form for adjoint PDE
 a_adjoint_v = h_v(rho) * inner(sigma_v(v, Id), epsilon(p)) * dx
@@ -195,75 +203,67 @@ a_adjoint = a_adjoint_v + a_adjoint_s + a_adjoint_r
 L_adjoint = inner(u - u_star, v) * dx(4)
 R_adj = a_adjoint - L_adjoint
 
-# Beam .pvd file for saving designs
-beam = File(options.output + '/beam.pvd')
-dJdrho2 = Function(V)
-dJdrho3 = Function(V)
-dJdrho2_project = Function(V)
-dJdrho3_project = Function(V)
-dJdrho2_norm = Function(V)
-dJdrho3_norm = Function(V)
-
-N = M * 2
-index_2 = []
-index_3 = []
-
-for i in range(N):
-	if (i%2) == 0:
-		index_2.append(i)
-	if (i%2) == 1:
-		index_3.append(i)
+def updateStimulus(rho, p, Id):
+	dJds = -h_r(rho) * inner(sigma_a(Id, Id), epsilon(p))
+	s_new = s - alpha * dJds
+	return s_new
 
 def FormObjectiveGradient(tao, x, G):
 
-	# Print volume fraction of structural material
-	volume_s = assemble(v_s(rho) * dx)/omega
-	print("The volume fraction(Vs) is {}".format(volume_s))
-
-	# Print volume fraction of responsive material
-	volume_r = assemble(v_r(rho) * dx)/omega
-	print("The volume fraction(Vr) is {}".format(volume_r))
-	print(" ")
-
 	i = tao.getIterationNumber()
-	if (i%5) == 0:
-		rho_i.interpolate(rho.sub(1) - rho.sub(0))
-		beam.write(rho_i, u, time = i)
+	if (i%50) == 0:
+		rho_i = Function(V)
+		rho_i = rho.sub(1) - rho.sub(0)
+		rho_i = interpolate(rho_i, V)
+		File(options.output + '/beam-{}.pvd'.format(i)).write(rho_i, u)
+
 
 	with rho.dat.vec as rho_vec:
 		rho_vec.set(0.0)
 		rho_vec.axpy(1.0, x)
 
 	# Solve forward PDE
-	solve(R_fwd == 0, u, bcs = bcs)
+	solve(R_fwd == 0, u, bcs = bcs, solver_parameters={'snes_max_it': 500})
 
 	# Solve adjoint PDE
-	solve(R_adj == 0, p, bcs = bcs)
+	solve(R_adj == 0, p, bcs = bcs, solver_parameters={'snes_max_it': 500})
 
-	# Evaluate the objective function
-	# objective_value = assemble(J)
-	# print("The value of objective function is {}".format(objective_value))
+	objective_value = assemble(J)
+	print("The value of objective function is {}".format(objective_value))
 
-	# Compute gradiet w.r.t rho2 and rho3
-	dJdrho2.interpolate(assemble(derivative(L, rho.sub(0))))
-	#dJdrho2.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
+	volume_s = assemble(v_s(rho) * dx)/omega
+	print("The volume fraction(Vs) is {}".format(volume_s))
 
-	dJdrho3.interpolate(assemble(derivative(L, rho.sub(1))))
-	#dJdrho3.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
+	volume_r = assemble(v_r(rho) * dx)/omega
+	print("The volume fraction(Vr) is {}".format(volume_r))
+	print(" ")
 
-	dJdrho2_norm.interpolate(Constant(1/omega) * Constant(assemble(dJdrho2 * dx)))
-	dJdrho3_norm.interpolate(Constant(1/omega) * Constant(assemble(dJdrho3 * dx)))
+	dJdrho2 = assemble(derivative(L, rho.sub(0)))
+	dJdrho3 = assemble(derivative(L, rho.sub(1)))
 
-	dJdrho2_project.interpolate(dJdrho2 - dJdrho2_norm)
-	dJdrho2_project.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
+	# Updating the Stimulus
+	s = updateStimulus(rho, p, Id)
+	s_i = project(s, V)
+	if (i%50) == 0:
+		File(options.output + '/stimulus-{}.pvd'.format(i)).write(s_i)
 
-	dJdrho3_project.interpolate(dJdrho3 - dJdrho3_norm)
-	dJdrho3_project.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
+	dJdrho2_array = dJdrho2.vector().array()
+	dJdrho3_array = dJdrho3.vector().array()
 
-	G.setValues(index_2, dJdrho2_project.vector().array())
-	G.setValues(index_3, dJdrho3_project.vector().array())
+	N = M * 2
+	index_2 = []
+	index_3 = []
 
-	f_val = assemble(L)
+	for i in range(N):
+		if (i%2) == 0:
+			index_2.append(i)
+		if (i%2) == 1:
+			index_3.append(i)
+
+	G.setValues(index_2, dJdrho2_array)
+	G.setValues(index_3, dJdrho3_array)
+
+	f_val = assemble(JJ)
 	return f_val
 
 # Setting lower and upper bounds
@@ -280,7 +280,7 @@ with ub.dat.vec as ub_vec:
 
 # Setting TAO solver
 tao = PETSc.TAO().create(PETSc.COMM_SELF)
-tao.setType('bncg')
+tao.setType('blmvm')
 tao.setObjectiveGradient(FormObjectiveGradient, None)
 tao.setVariableBounds(rho_lb, rho_ub)
 tao.setFromOptions()
@@ -292,6 +292,20 @@ with rho.dat.vec as rho_vec:
 # Solve the optimization problem
 tao.solve(x)
 tao.destroy()
+
+# Recover the final solution
+with rho.dat.vec as rho_vec:
+	rho_vec = x.copy()
+
+# Saving files for viewing with Paraview
+rho_final = Function(V, name = "Design variable")
+rho_final = rho.sub(1) - rho.sub(0)
+rho_final = interpolate(rho_final, V)
+File(options.output + '/rho-final.pvd').write(rho_final)
+File(options.output + '/rho-final-rho2.pvd').write(rho.sub(0))
+File(options.output + '/rho-final-rho3.pvd').write(rho.sub(1))
+File(options.output + '/displacement.pvd').write(u)
+File(options.output + '/beam-final.pvd').write(rho_final, u)
 
 end = time.time()
 print("\nExecution time (in seconds):", (end - start))
