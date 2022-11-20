@@ -74,7 +74,7 @@ kappa = Constant(options.kappa)
 # Total volume of the domain |omega|
 omega = assemble(interpolate(Constant(1.0), V) * dx)
 
-delta = Constant(1.0e-5)
+delta = Constant(1.0e-7)
 epsilon = Constant(options.epsilon)
 kappa_d_e = Constant(kappa / epsilon)
 kappa_m_e = Constant(kappa * epsilon)
@@ -199,10 +199,6 @@ R_adj = a_adjoint - L_adjoint
 beam = File(options.output + '/beam.pvd')
 dJdrho2 = Function(V)
 dJdrho3 = Function(V)
-dJdrho2_project = Function(V)
-dJdrho3_project = Function(V)
-dJdrho2_norm = Function(V)
-dJdrho3_norm = Function(V)
 
 N = M * 2
 index_2 = []
@@ -246,22 +242,13 @@ def FormObjectiveGradient(tao, x, G):
 
 	# Compute gradiet w.r.t rho2 and rho3
 	dJdrho2.interpolate(assemble(derivative(L, rho.sub(0))))
-	#dJdrho2.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
+	dJdrho2.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
 
 	dJdrho3.interpolate(assemble(derivative(L, rho.sub(1))))
-	#dJdrho3.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
+	dJdrho3.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
 
-	dJdrho2_norm.interpolate(Constant(1/omega) * Constant(assemble(dJdrho2 * dx)))
-	dJdrho3_norm.interpolate(Constant(1/omega) * Constant(assemble(dJdrho3 * dx)))
-
-	dJdrho2_project.interpolate(dJdrho2 - dJdrho2_norm)
-	dJdrho2_project.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
-
-	dJdrho3_project.interpolate(dJdrho3 - dJdrho3_norm)
-	dJdrho3_project.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
-
-	G.setValues(index_2, dJdrho2_project.vector().array())
-	G.setValues(index_3, dJdrho3_project.vector().array())
+	G.setValues(index_2, dJdrho2.vector().array())
+	G.setValues(index_3, dJdrho3.vector().array())
 
 	f_val = assemble(L)
 	return f_val
