@@ -2,6 +2,7 @@ def parse():
 	import argparse
 	parser = argparse.ArgumentParser()
 	parser.add_argument('-tao_type', '--tao_type', type = str, default = 'bncg', help = 'TAO algorithm type')
+	parser.add_argument('-tao_max_funcs', '--tao_max_funcs', type = int, default = 10000, help = 'TAO maximum functions evaluations')
 	#parser.add_argument('-tao_bncg_type', '--tao_bncg_type', type = str, default = 'gd', help = 'TAO algorithm type')
 	parser.add_argument('-tao_monitor', '--tao_monitor', action = 'store_true', help = 'TAO monitor')
 	parser.add_argument('-ls', '--lagrange_s', type = float, default = 5.0, help = 'Lagrange multiplier for structural material')
@@ -70,6 +71,8 @@ rho = interpolate(rho, VV)
 
 # Define the constant parameter used in the problem
 kappa = Constant(options.kappa)
+lagrange_r = Constant(options.lagrange_r)
+lagrange_s = Constant(options.lagrange_s)
 
 # Total volume of the domain |omega|
 omega = assemble(interpolate(Constant(1.0), V) * dx)
@@ -159,8 +162,8 @@ func2_sub3 = inner(grad(v_r(rho)), grad(v_r(rho))) * dx
 
 func2 = kappa_m_e * (func2_sub1 + func2_sub2 + func2_sub3)
 
-func3 = options.lagrange_s * (v_s(rho) - options.volume_s * omega) * dx  # Structural material 1(Blue)
-func4 = options.lagrange_r * (v_r(rho) - options.volume_r * omega) * dx  # Responsive material 2(Red)
+func3 = lagrange_s * v_s(rho) * dx
+func4 = lagrange_r * v_r(rho) * dx
 
 # Objective function + Modica-Mortola functional
 P = func1 + func2 + func3 + func4
@@ -222,7 +225,7 @@ def FormObjectiveGradient(tao, x, G):
 	print(" ")
 
 	i = tao.getIterationNumber()
-	if (i%5) == 0:
+	if (i%20) == 0:
 		rho_i.interpolate(rho.sub(1) - rho.sub(0))
 		beam.write(rho_i, u, time = i)
 
