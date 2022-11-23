@@ -225,7 +225,7 @@ def FormObjectiveGradient(tao, x, G):
 	print(" ")
 
 	i = tao.getIterationNumber()
-	if (i%1) == 0:
+	if (i%20) == 0:
 		rho_i.interpolate(rho.sub(1) - rho.sub(0))
 		beam.write(rho_i, u, time = i)
 
