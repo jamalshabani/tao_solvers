@@ -59,6 +59,7 @@ rho_i = Function(V, name = "Material density")
 rho2 = Function(V, name = "Structural material")  # Structural material 1(Blue)
 rho3 = Function(V, name = "Responsive material")  # Responsive material 2(Red)
 s = Function(V, name = "Stimulus")
+trace = Function(V, name = "Trace tr(e(u))")
 
 x, y = SpatialCoordinate(mesh)
 rho2.interpolate(Constant(options.volume_s))
@@ -177,8 +178,8 @@ func2 = kappa_m_e * (func2_sub1 + func2_sub2 + func2_sub3)
 func3 = lagrange_s * v_s(rho) * dx
 func4 = lagrange_r * v_r(rho) * dx
 
-func5 = inner(h_v(rho), s_s(rho)) * dx
-func6 = inner(h_s(rho), s_s(rho)) * dx
+func5 = inner(h_v(rho), pow(s_s(rho), 2)) * dx
+func6 = inner(h_s(rho), pow(s_s(rho), 2)) * dx
 
 # Objective function + Modica-Mortola functional
 P = func1 + func2 + func3 + func4 + func5 + func6
@@ -254,7 +255,8 @@ def FormObjectiveGradient(tao, x, G):
 	if (i%5) == 0:
 		rho_i.interpolate(rho.sub(1) - rho.sub(0))
 		stimulus.interpolate(rho.sub(2))
-		beam.write(rho_i, stimulus, u, time = i)
+		trace.interpolate(tr(epsilon(u)))
+		beam.write(rho_i, stimulus, trace, u, time = i)
 
 	with rho.dat.vec as rho_vec:
 		rho_vec.set(0.0)
