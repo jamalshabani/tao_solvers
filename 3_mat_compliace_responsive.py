@@ -62,11 +62,7 @@ s = Function(V, name = "Stimulus")
 
 x, y = SpatialCoordinate(mesh)
 rho2.interpolate(Constant(options.volume_s))
-rho2.interpolate(Constant(1.0), mesh.measure_set("cell", 4))
-
 rho3.interpolate(Constant(options.volume_r))
-rho3.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
-
 s.interpolate(Constant(options.steamy))
 
 rho = as_vector([rho2, rho3, s])
@@ -181,8 +177,11 @@ func2 = kappa_m_e * (func2_sub1 + func2_sub2 + func2_sub3)
 func3 = lagrange_s * v_s(rho) * dx
 func4 = lagrange_r * v_r(rho) * dx
 
+func5 = inner(h_v(rho), s_s(rho)) * dx
+func6 = inner(h_s(rho), s_s(rho)) * dx
+
 # Objective function + Modica-Mortola functional
-P = func1 + func2 + func3 + func4
+P = func1 + func2 + func3 + func4 + func5 + func6
 JJ = J + P
 
 # Define the weak form for forward PDE
@@ -194,7 +193,7 @@ a_forward = a_forward_v + a_forward_s + a_forward_r
 L_forward_v = delta * s_s(rho) * h_v(rho) * inner(sigma_av(Id, Id), epsilon(v)) * dx
 L_forward_s = delta * s_s(rho) * h_s(rho) * inner(sigma_as(Id, Id), epsilon(v)) * dx
 L_forward_r = s_s(rho) * h_r(rho) * inner(sigma_ar(Id, Id), epsilon(v)) * dx
-L_forward = inner(f, v) * ds(8) + L_forward_v + L_forward_s + L_forward_r
+L_forward = inner(f, v) * ds(8) + L_forward_r
 R_fwd = a_forward - L_forward
 
 # Define the Lagrangian
@@ -207,7 +206,7 @@ a_lagrange   = a_lagrange_v + a_lagrange_s + a_lagrange_r
 L_lagrange_v = delta * s_s(rho) * h_v(rho) * inner(sigma_av(Id, Id), epsilon(p)) * dx
 L_lagrange_s = delta * s_s(rho) * h_s(rho) * inner(sigma_as(Id, Id), epsilon(p)) * dx
 L_lagrange_r = s_s(rho) * h_r(rho) * inner(sigma_ar(Id, Id), epsilon(p)) * dx
-L_lagrange = inner(f, p) * ds(8) + L_lagrange_v + L_lagrange_s + L_lagrange_r
+L_lagrange = inner(f, p) * ds(8) + L_lagrange_r
 R_lagrange = a_lagrange - L_lagrange
 L = JJ - R_lagrange
 
@@ -225,6 +224,7 @@ beam = File(options.output + '/beam.pvd')
 dJdrho2 = Function(V)
 dJdrho3 = Function(V)
 dJds = Function(V)
+stimulus = Function(V, name = "Stimulus")
 
 N = M * 3
 index_2 = []
@@ -251,9 +251,10 @@ def FormObjectiveGradient(tao, x, G):
 	print(" ")
 
 	i = tao.getIterationNumber()
-	if (i%20) == 0:
+	if (i%5) == 0:
 		rho_i.interpolate(rho.sub(1) - rho.sub(0))
-		beam.write(rho_i, s, u, time = i)
+		stimulus.interpolate(rho.sub(2))
+		beam.write(rho_i, stimulus, u, time = i)
 
 	with rho.dat.vec as rho_vec:
 		rho_vec.set(0.0)
@@ -269,13 +270,9 @@ def FormObjectiveGradient(tao, x, G):
 	# objective_value = assemble(J)
 	# print("The value of objective function is {}".format(objective_value))
 
-	# Compute gradiet w.r.t rho2 and rho3
+	# Compute gradiet w.r.t rho2 and rho3 and s
 	dJdrho2.interpolate(assemble(derivative(L, rho.sub(0))))
-	dJdrho2.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
-
 	dJdrho3.interpolate(assemble(derivative(L, rho.sub(1))))
-	dJdrho3.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
-
 	dJds.interpolate(assemble(derivative(L, rho.sub(2))))
 
 	G.setValues(index_2, dJdrho2.vector().array())
