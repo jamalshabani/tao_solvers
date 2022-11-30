@@ -227,8 +227,8 @@ def FormObjectiveGradient(tao, x, G):
 	i = tao.getIterationNumber()
 	if (i%20) == 0:
 		rho_i.interpolate(rho.sub(1) - rho.sub(0))
-		rho_i_array = np.rint(rho_i.vector().array())
-		rho_i.dat.data[:] = rho_i_array
+		# rho_i_array = np.rint(rho_i.vector().array())
+		# rho_i.dat.data[:] = rho_i_array
 		beam.write(rho_i, u, time = i)
 
 	with rho.dat.vec as rho_vec:
