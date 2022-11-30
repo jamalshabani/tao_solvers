@@ -63,7 +63,10 @@ trace = Function(V, name = "Trace tr(e(u))")
 
 x, y = SpatialCoordinate(mesh)
 rho2.interpolate(Constant(options.volume_s))
+rho2.interpolate(Constant(1.0), mesh.measure_set("cell", 4))
+
 rho3.interpolate(Constant(options.volume_r))
+rho3.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
 s.interpolate(Constant(options.steamy))
 
 rho = as_vector([rho2, rho3, s])
@@ -160,7 +163,7 @@ p = Function(VV, name = "Adjoint variable")
 bcs = DirichletBC(VV, Constant((0, 0)), 7)
 
 # Define the objective function
-J = inner(f ,u) * ds(8)
+J = 0.5 * inner(u - u_star, u - u_star) * dx(4)
 func1 = kappa_d_e * W(rho) * dx
 
 func2_sub1 = inner(grad(v_v(rho)), grad(v_v(rho))) * dx
@@ -190,7 +193,6 @@ L_forward = inner(f, v) * ds(8) + L_forward_r
 R_fwd = a_forward - L_forward
 
 # Define the Lagrangian
-# The problem is self-adjoint so we replace langrange multiplier(p) with u
 a_lagrange_v = h_v(rho) * inner(sigma_v(u, Id), epsilon(p)) * dx
 a_lagrange_s = h_s(rho) * inner(sigma_s(u, Id), epsilon(p)) * dx
 a_lagrange_r = h_r(rho) * inner(sigma_r(u, Id), epsilon(p)) * dx
@@ -207,7 +209,7 @@ a_adjoint_s = h_s(rho) * inner(sigma_s(v, Id), epsilon(p)) * dx
 a_adjoint_r = h_r(rho) * inner(sigma_r(v, Id), epsilon(p)) * dx
 a_adjoint = a_adjoint_v + a_adjoint_s + a_adjoint_r
 
-L_adjoint = inner(f, v) * ds(8)
+L_adjoint = inner(u - u_star, v) * dx(4)
 R_adj = a_adjoint - L_adjoint
 
 # Beam .pvd file for saving designs
@@ -264,7 +266,10 @@ def FormObjectiveGradient(tao, x, G):
 
 	# Compute gradiet w.r.t rho2 and rho3 and s
 	dJdrho2.interpolate(assemble(derivative(L, rho.sub(0))))
+	dJdrho2.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
+
 	dJdrho3.interpolate(assemble(derivative(L, rho.sub(1))))
+	dJdrho3.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
 	dJds.interpolate(assemble(derivative(L, rho.sub(2))))
 
 	G.setValues(index_2, dJdrho2.vector().array())
