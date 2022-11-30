@@ -7,10 +7,6 @@ program_list = ["rm -rf test1", "rm -rf test2", "rm -rf test3",
 
 
 
-
-
-
-
 i = 1
 for program in program_list:
     print("------------------------------------------------------------------------------")
