@@ -136,13 +136,7 @@ def epsilon(u):
 	return 0.5 * (grad(u) + grad(u).T)
 
 # Define the residual stresses
-def sigma_av(A, Id):
-	return lambda_v * tr(A) * Id + 2 * mu_v * A
-
-def sigma_as(A, Id):
-	return lambda_s * tr(A) * Id + 2 * mu_s * A
-
-def sigma_ar(A, Id):
+def sigma_A(A, Id):
 	return lambda_r * tr(A) * Id + 2 * mu_r * A
 
 # Define the stress tensor sigma_v(u) for void
@@ -191,9 +185,7 @@ a_forward_s = h_s(rho) * inner(sigma_s(u, Id), epsilon(v)) * dx
 a_forward_r = h_r(rho) * inner(sigma_r(u, Id), epsilon(v)) * dx
 a_forward = a_forward_v + a_forward_s + a_forward_r
 
-L_forward_v = delta * s_s(rho) * h_v(rho) * inner(sigma_av(Id, Id), epsilon(v)) * dx
-L_forward_s = delta * s_s(rho) * h_s(rho) * inner(sigma_as(Id, Id), epsilon(v)) * dx
-L_forward_r = s_s(rho) * h_r(rho) * inner(sigma_ar(Id, Id), epsilon(v)) * dx
+L_forward_r = s_s(rho) * h_r(rho) * inner(sigma_A(Id, Id), epsilon(v)) * dx
 L_forward = inner(f, v) * ds(8) + L_forward_r
 R_fwd = a_forward - L_forward
 
@@ -204,9 +196,7 @@ a_lagrange_s = h_s(rho) * inner(sigma_s(u, Id), epsilon(p)) * dx
 a_lagrange_r = h_r(rho) * inner(sigma_r(u, Id), epsilon(p)) * dx
 a_lagrange   = a_lagrange_v + a_lagrange_s + a_lagrange_r
 
-L_lagrange_v = delta * s_s(rho) * h_v(rho) * inner(sigma_av(Id, Id), epsilon(p)) * dx
-L_lagrange_s = delta * s_s(rho) * h_s(rho) * inner(sigma_as(Id, Id), epsilon(p)) * dx
-L_lagrange_r = s_s(rho) * h_r(rho) * inner(sigma_ar(Id, Id), epsilon(p)) * dx
+L_lagrange_r = s_s(rho) * h_r(rho) * inner(sigma_A(Id, Id), epsilon(p)) * dx
 L_lagrange = inner(f, p) * ds(8) + L_lagrange_r
 R_lagrange = a_lagrange - L_lagrange
 L = JJ - R_lagrange
