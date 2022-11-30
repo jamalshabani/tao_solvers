@@ -179,7 +179,6 @@ L_forward = inner(f, v) * ds(8)
 R_fwd = a_forward - L_forward
 
 # Define the Lagrangian
-# The problem is self-adjoint so we replace langrange multiplier(p) with u
 a_lagrange_v = h_v(rho) * inner(sigma_v(u, Id), epsilon(p)) * dx
 a_lagrange_s = h_s(rho) * inner(sigma_s(u, Id), epsilon(p)) * dx
 a_lagrange_r = h_r(rho) * inner(sigma_r(u, Id), epsilon(p)) * dx
