@@ -85,7 +85,6 @@ kappa_m_e = Constant(kappa * epsilon)
 
 # Define the boundary/traction force
 f = Constant((0, -1.0))
-u_star = Constant((0, 1.0))
 
 # Young's modulus of the beam and poisson ratio
 E_v = Constant(delta)
@@ -242,11 +241,11 @@ def FormObjectiveGradient(tao, x, G):
 	print(" ")
 
 	i = tao.getIterationNumber()
-	if (i%20) == 0:
+	if (i%5) == 0:
 		rho_i.interpolate(rho.sub(1) - rho.sub(0))
 		stimulus.interpolate(rho.sub(2))
 		trace.interpolate(tr(epsilon(u)))
-		beam.write(rho_i, stimulus, trace, u, time = i)
+		beam.write(rho_i, stimulus, rho.sub(1), rho.sub(0), trace, u, time = i)
 
 	with rho.dat.vec as rho_vec:
 		rho_vec.set(0.0)
