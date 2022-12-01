@@ -159,7 +159,7 @@ p = Function(VV, name = "Adjoint variable")
 bcs = DirichletBC(VV, Constant((0, 0)), 7)
 
 # Define the objective function
-J = inner(f ,u) * ds(8)
+J = inner(f, u) * ds(8)
 func1 = kappa_d_e * W(rho) * dx
 
 func2_sub1 = inner(grad(v_v(rho)), grad(v_v(rho))) * dx
@@ -245,7 +245,9 @@ def FormObjectiveGradient(tao, x, G):
 		rho_i.interpolate(rho.sub(1) - rho.sub(0))
 		stimulus.interpolate(rho.sub(2))
 		trace.interpolate(tr(epsilon(u)))
-		beam.write(rho_i, stimulus, rho.sub(1), rho.sub(0), trace, u, time = i)
+		rho2.interpolate(rho.sub(0))
+		rho3.interpolate(rho.sub(1))
+		beam.write(rho_i, stimulus, rho2, rho3, trace, u, time = i)
 
 	with rho.dat.vec as rho_vec:
 		rho_vec.set(0.0)
