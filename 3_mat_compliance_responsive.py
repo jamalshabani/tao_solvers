@@ -171,11 +171,11 @@ func2 = kappa_m_e * (func2_sub1 + func2_sub2 + func2_sub3)
 func3 = lagrange_s * v_s(rho) * dx
 func4 = lagrange_r * v_r(rho) * dx
 
-func5 = inner(h_v(rho), pow(s_s(rho), 2)) * dx
-func6 = inner(h_s(rho), pow(s_s(rho), 2)) * dx
+func5 = inner(v_v(rho), pow(s_s(rho), 2)) * dx
+func6 = inner(v_s(rho), pow(s_s(rho), 2)) * dx
 
 # Objective function + Modica-Mortola functional
-P = func1 + func2 + func3 + func4
+P = func1 + func2 + func3 + func4 + func5 + func6
 JJ = J + P
 
 # Define the weak form for forward PDE
@@ -184,10 +184,8 @@ a_forward_s = h_s(rho) * inner(sigma_s(u, Id), epsilon(v)) * dx
 a_forward_r = h_r(rho) * inner(sigma_r(u, Id), epsilon(v)) * dx
 a_forward = a_forward_v + a_forward_s + a_forward_r
 
-L_forward_v = Constant(1.0e-8) * s_s(rho) * h_v(rho) * inner(sigma_A(Id, Id), epsilon(v)) * dx
-L_forward_s = Constant(1.0e-8) * s_s(rho) * h_v(rho) * inner(sigma_A(Id, Id), epsilon(v)) * dx
 L_forward_r = s_s(rho) * h_r(rho) * inner(sigma_A(Id, Id), epsilon(v)) * dx
-L_forward = inner(f, v) * ds(8) + L_forward_v + L_forward_s + L_forward_r
+L_forward = inner(f, v) * ds(8) + L_forward_r
 R_fwd = a_forward - L_forward
 
 # Define the Lagrangian
@@ -197,10 +195,8 @@ a_lagrange_s = h_s(rho) * inner(sigma_s(u, Id), epsilon(p)) * dx
 a_lagrange_r = h_r(rho) * inner(sigma_r(u, Id), epsilon(p)) * dx
 a_lagrange   = a_lagrange_v + a_lagrange_s + a_lagrange_r
 
-L_lagrange_v = Constant(1.0e-8) * s_s(rho) * h_v(rho) * inner(sigma_A(Id, Id), epsilon(p)) * dx
-L_lagrange_s = Constant(1.0e-8) * s_s(rho) * h_s(rho) * inner(sigma_A(Id, Id), epsilon(p)) * dx
 L_lagrange_r = s_s(rho) * h_r(rho) * inner(sigma_A(Id, Id), epsilon(p)) * dx
-L_lagrange = inner(f, p) * ds(8) + L_lagrange_v + L_lagrange_s + L_lagrange_r
+L_lagrange = inner(f, p) * ds(8) + L_lagrange_r
 R_lagrange = a_lagrange - L_lagrange
 L = JJ - R_lagrange
 
