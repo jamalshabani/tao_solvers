@@ -31,9 +31,6 @@ def parse():
 
 options = parse()
 
-global lagrange_s
-global lagrange_r
-
 from firedrake import *
 from petsc4py import PETSc
 import time
@@ -75,8 +72,8 @@ rho = interpolate(rho, VVV)
 
 # Define the constant parameter used in the problem
 kappa = Constant(options.kappa)
-lagrange_r = options.lagrange_r
-lagrange_s = options.lagrange_s
+lagrange_r = Constant(options.lagrange_r)
+lagrange_s = Constant(options.lagrange_s)
 
 # Total volume of the domain |omega|
 omega = assemble(interpolate(Constant(1.0), V) * dx)
@@ -238,17 +235,10 @@ def FormObjectiveGradient(tao, x, G):
 	volume_s = assemble(v_s(rho) * dx)/omega
 	print("The volume fraction(Vs) is {}".format(volume_s))
 
-	if (volume_s < 0.3):
-		lagrange_s.assign(lagrange_s * 0.5)
-
 	# Print volume fraction of responsive material
 	volume_r = assemble(v_r(rho) * dx)/omega
 	print("The volume fraction(Vr) is {}".format(volume_r))
-	print(lagrange_s, lagrange_r)
 	print(" ")
-
-	if (volume_r < 0.3):
-		lagrange_r.assign(lagrange_r * 0.5)
 
 	i = tao.getIterationNumber()
 	if (i%5) == 0:
