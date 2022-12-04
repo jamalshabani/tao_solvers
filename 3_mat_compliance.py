@@ -4,6 +4,8 @@ def parse():
     parser.add_argument('-tao_bncg_type', '--tao_bncg_type', type = str, default = 'ssml_bfgs', help = 'BNCG algorithm type')
     parser.add_argument('-tao_bncg_alpha', '--tao_bncg_alpha', type = float, default = 0.5, help = 'Scalar preconditioning')
     parser.add_argument('-tao_monitor', '--tao_monitor', action = 'store_true', help = 'TAO monitor')
+    parser.add_argument('-ls', '--lagrange_s', type = float, default = 5.0, help = 'Lagrange multiplier for structural material')
+    parser.add_argument('-lr', '--lagrange_r', type = float, default = 0.5, help = 'Lagrange multiplier for responsive material')
     parser.add_argument('-tao_converged_reason', '--tao_converged_reason', action = 'store_true', help = 'TAO convergence reason')
     parser.add_argument('-tao_ls_type', '--tao_ls_type', type = str, default = 'more-thuente', help = "TAO line search")
     parser.add_argument('-tao_view', '--tao_view', action = 'store_true', help = "View convergence details")
@@ -64,6 +66,8 @@ rho = interpolate(rho, VV)
 
 # Define the constant parameter used in the problem
 kappa = Constant(options.kappa)
+lagrange_r = Constant(options.lagrange_r)
+lagrange_s = Constant(options.lagrange_s)
 
 # Total volume of the domain |omega|
 omega = assemble(interpolate(Constant(1.0), V) * dx)
@@ -152,8 +156,11 @@ func2_sub3 = inner(grad(v_r(rho)), grad(v_r(rho))) * dx
 
 func2 = kappa_m_e * (func2_sub1 + func2_sub2 + func2_sub3)
 
+func3 = lagrange_s * v_s(rho) * dx
+func4 = lagrange_r * v_r(rho) * dx
+
 # Objective function + Modica-Mortola functional + Volume constraint
-P = func1 + func2
+P = func1 + func2 + func3 + func4
 JJ = J + P
 
 # Define the weak form for forward PDE
@@ -223,20 +230,9 @@ def FormObjectiveGradient(tao, x, G):
     # Compute gradiet w.r.t rho2 and rho3
     dJdrho2.interpolate(assemble(derivative(L, rho.sub(0))))
     dJdrho3.interpolate(assemble(derivative(L, rho.sub(1))))
-    # dJdrho2 = derivative(L, rho.sub(0))
-    # print(type(dJdrho2))
-
-    dJdrho2_project.interpolate(dJdrho2 - assemble(dJdrho2 * dx)/omega)
-    dJdrho3_project.interpolate(dJdrho3 - assemble(dJdrho3 * dx)/omega)
-
-    # print(assemble(dJdrho2_project * dx))
-    # print(assemble(dJdrho3_project * dx))
-    # print(omega)
-
-    dJdrho2_array = dJdrho2_project.vector().array()
-    dJdrho3_array = dJdrho3_project.vector().array()
-
-    # Try to project G
+ 
+    dJdrho2_array = dJdrho2.vector().array()
+    dJdrho3_array = dJdrho3.vector().array()
 
     G.setValues(index_2, dJdrho2_array)
     G.setValues(index_3, dJdrho3_array)
