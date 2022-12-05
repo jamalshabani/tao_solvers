@@ -244,7 +244,7 @@ def FormObjectiveGradient(tao, x, G):
 	print(" ")
 
 	i = tao.getIterationNumber()
-	if (i%20) == 0:
+	if (i%10) == 0:
 		rho_i.interpolate(rho.sub(1) - rho.sub(0))
 		stimulus.interpolate(rho.sub(2))
 		trace.interpolate(tr(epsilon(u)))
