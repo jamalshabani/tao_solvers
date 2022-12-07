@@ -7,9 +7,6 @@ program_list = ["rm -rf test1", "rm -rf test2", "rm -rf test3", "rm -rf test4",
 
 
 
-
-
-
 i = 1
 for program in program_list:
     print("------------------------------------------------------------------------------")
@@ -20,6 +17,7 @@ for program in program_list:
     print("")
     subprocess.run(program, shell = True)
     i = i + 1
+
 
 
 # ErEs=1.0
