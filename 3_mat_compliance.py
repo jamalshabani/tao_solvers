@@ -59,6 +59,12 @@ x, y = SpatialCoordinate(mesh)
 rho2 = interpolate(Constant(options.volume_s), V)
 rho3 = interpolate(Constant(options.volume_r), V)
 
+rho2 = 0.5 + 0.5 * sin(4*pi*x) * sin(8*pi*y)
+rho3 = 0.3 + 0.3 * cos(4*pi*x) * cos(8*pi*y)
+
+rho2 = interpolate(rho2, V)
+rho3 = interpolate(rho3, V)
+
 
 rho = as_vector([rho2, rho3])
 rho = interpolate(rho, VV)
