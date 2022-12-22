@@ -224,7 +224,7 @@ def FormObjectiveGradient(tao, x, G):
 	print(" ")
 
 	i = tao.getIterationNumber()
-	if (i%20) == 0:
+	if (i%5) == 0:
 		rho_i.interpolate(rho.sub(1) - rho.sub(0))
 		# rho_i_array = np.rint(rho_i.vector().array())
 		# rho_i.dat.data[:] = rho_i_array
