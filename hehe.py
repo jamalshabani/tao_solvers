@@ -63,11 +63,14 @@ trace = Function(V, name = "Trace tr(e(u))")
 
 x, y = SpatialCoordinate(mesh)
 rho2.interpolate(Constant(options.volume_s))
+rho2.interpolate(Constant(1.0), mesh.measure_set("cell", 4))
+
 rho3.interpolate(Constant(options.volume_r))
+rho3.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
 s.interpolate(Constant(options.steamy))
 
-rho = as_vector([rho2, rho3, s])
-rho = interpolate(rho, VVV)
+rho = as_vector([rho2, rho3])
+rho = interpolate(rho, VV)
 ###### End Initial Design #####
 
 # Define the constant parameter used in the problem
@@ -83,11 +86,9 @@ epsilon = Constant(options.epsilon)
 kappa_d_e = Constant(kappa / epsilon)
 kappa_m_e = Constant(kappa * epsilon)
 
-# Define the boundary/traction force and stimulus
+# Define the traction force and predescribed displacement
 f = Constant((0, -1.0))
-e1 = Constant((1, 0))
-e2 = Constant((0, 1))
-S = -1 * outer(e1, e1) + outer(e2, e2)
+u_star = Constant((0, 1.0))
 
 # Young's modulus of the beam and poisson ratio
 E_v = Constant(delta)
@@ -125,9 +126,6 @@ def h_s(rho):
 def h_r(rho):
 	return pow(rho.sub(1), options.power_p)
 
-def s_s(rho):
-	return rho.sub(2)
-
 # Define the double-well potential function
 # W(x, y) = (x + y)^q * (1 - x)^q * (1 - y)^q
 def W(rho):
@@ -162,7 +160,7 @@ p = Function(VV, name = "Adjoint variable")
 bcs = DirichletBC(VV, Constant((0, 0)), 7)
 
 # Define the objective function
-J = inner(f, u) * ds(8)
+J = 0.5 * inner(u - u_star, u - u_star) * dx(4)
 func1 = kappa_d_e * W(rho) * dx
 
 func2_sub1 = inner(grad(v_v(rho)), grad(v_v(rho))) * dx
@@ -174,8 +172,8 @@ func2 = kappa_m_e * (func2_sub1 + func2_sub2 + func2_sub3)
 func3 = lagrange_s * v_s(rho) * dx
 func4 = lagrange_r * v_r(rho) * dx
 
-func5 = inner(v_v(rho), pow(s_s(rho), 2)) * dx
-func6 = inner(v_s(rho), pow(s_s(rho), 2)) * dx
+func5 = inner(h_v(rho), pow(s, 2)) * dx
+func6 = inner(h_s(rho), pow(s, 2)) * dx
 
 # Objective function + Modica-Mortola functional
 P = func1 + func2 + func3 + func4 + func5 + func6
@@ -187,18 +185,17 @@ a_forward_s = h_s(rho) * inner(sigma_s(u, Id), epsilon(v)) * dx
 a_forward_r = h_r(rho) * inner(sigma_r(u, Id), epsilon(v)) * dx
 a_forward = a_forward_v + a_forward_s + a_forward_r
 
-L_forward_r = s_s(rho) * h_r(rho) * inner(sigma_A(S, Id), epsilon(v)) * dx
+L_forward_r = s * h_r(rho) * inner(sigma_A(Id, Id), epsilon(v)) * dx
 L_forward = inner(f, v) * ds(8) + L_forward_r
 R_fwd = a_forward - L_forward
 
 # Define the Lagrangian
-# The problem is self-adjoint so we replace langrange multiplier(p) with u
 a_lagrange_v = h_v(rho) * inner(sigma_v(u, Id), epsilon(p)) * dx
 a_lagrange_s = h_s(rho) * inner(sigma_s(u, Id), epsilon(p)) * dx
 a_lagrange_r = h_r(rho) * inner(sigma_r(u, Id), epsilon(p)) * dx
 a_lagrange   = a_lagrange_v + a_lagrange_s + a_lagrange_r
 
-L_lagrange_r = s_s(rho) * h_r(rho) * inner(sigma_A(S, Id), epsilon(p)) * dx
+L_lagrange_r = s * h_r(rho) * inner(sigma_A(Id, Id), epsilon(p)) * dx
 L_lagrange = inner(f, p) * ds(8) + L_lagrange_r
 R_lagrange = a_lagrange - L_lagrange
 L = JJ - R_lagrange
@@ -209,7 +206,7 @@ a_adjoint_s = h_s(rho) * inner(sigma_s(v, Id), epsilon(p)) * dx
 a_adjoint_r = h_r(rho) * inner(sigma_r(v, Id), epsilon(p)) * dx
 a_adjoint = a_adjoint_v + a_adjoint_s + a_adjoint_r
 
-L_adjoint = inner(f, v) * ds(8)
+L_adjoint = inner(u - u_star, v) * dx(4)
 R_adj = a_adjoint - L_adjoint
 
 # Beam .pvd file for saving designs
@@ -219,18 +216,15 @@ dJdrho3 = Function(V)
 dJds = Function(V)
 stimulus = Function(V, name = "Stimulus")
 
-N = M * 3
+N = M * 2
 index_2 = []
 index_3 = []
-index_s = []
 
 for i in range(N):
-	if (i%3) == 0:
+	if (i%2) == 0:
 		index_2.append(i)
-	if (i%3) == 1:
+	if (i%2) == 1:
 		index_3.append(i)
-	if (i%3) == 2:
-		index_s.append(i)
 
 def FormObjectiveGradient(tao, x, G):
 
@@ -246,11 +240,10 @@ def FormObjectiveGradient(tao, x, G):
 	i = tao.getIterationNumber()
 	if (i%5) == 0:
 		rho_i.interpolate(rho.sub(1) - rho.sub(0))
-		stimulus.interpolate(rho.sub(2))
 		trace.interpolate(tr(epsilon(u)))
 		rho2.interpolate(rho.sub(0))
 		rho3.interpolate(rho.sub(1))
-		beam.write(rho_i, stimulus, rho2, rho3, trace, u, time = i)
+		beam.write(rho_i, rho2, rho3, trace, u, time = i)
 
 	with rho.dat.vec as rho_vec:
 		rho_vec.set(0.0)
@@ -268,21 +261,24 @@ def FormObjectiveGradient(tao, x, G):
 
 	# Compute gradiet w.r.t rho2 and rho3 and s
 	dJdrho2.interpolate(assemble(derivative(L, rho.sub(0))))
+	dJdrho2.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
+
 	dJdrho3.interpolate(assemble(derivative(L, rho.sub(1))))
-	dJds.interpolate(assemble(derivative(L, rho.sub(2))))
+	dJdrho3.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
+	#dJds.interpolate(assemble(derivative(L, rho.sub(2))))
 
 	G.setValues(index_2, dJdrho2.vector().array())
 	G.setValues(index_3, dJdrho3.vector().array())
-	G.setValues(index_s, dJds.vector().array())
+	#G.setValues(index_s, dJds.vector().array())
 
 	f_val = assemble(L)
 	return f_val
 
 # Setting lower and upper bounds
-lb = as_vector((0, 0, 0))
-ub = as_vector((1, 1, 1))
-lb = interpolate(lb, VVV)
-ub = interpolate(ub, VVV)
+lb = as_vector((0, 0))
+ub = as_vector((1, 1))
+lb = interpolate(lb, VV)
+ub = interpolate(ub, VV)
 
 with lb.dat.vec as lb_vec:
 	rho_lb = lb_vec

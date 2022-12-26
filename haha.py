@@ -21,8 +21,8 @@ def parse():
 	parser.add_argument('-e', '--epsilon', type = float, default = 5.0e-3, help = 'Phase-field regularization parameter')
 	parser.add_argument('-o', '--output', type = str, default = 'output1', help = 'Output folder')
 	parser.add_argument('-m', '--mesh', type = str, default = 'motion_mesh1.msh', help = 'Dimensions of meshed beam')
-	parser.add_argument('-es', '--esmodulus', type = float, default = 0.1, help = 'Elastic Modulus for structural material')
-	parser.add_argument('-er', '--ermodulus', type = float, default = 1.0, help = 'Elastic Modulus for responsive material')
+	parser.add_argument('-r', '--ratio', type = float, default = 1.0, help = 'Ratio of Elastic Moduli Er/Es')
+	parser.add_argument('-es', '--esmodulus', type = float, default = 1.0, help = 'Elastic Modulus for structural material')
 	parser.add_argument('-p', '--power_p', type = float, default = 2.0, help = 'Power for elasticity interpolation')
 	parser.add_argument('-q', '--power_q', type = float, default = 1.0, help = 'Power for multiple-well function')
 	parser.add_argument('-s', '--steamy', type = float, default = 1.0, help = 'Initial stimulus')
@@ -63,10 +63,7 @@ trace = Function(V, name = "Trace tr(e(u))")
 
 x, y = SpatialCoordinate(mesh)
 rho2.interpolate(Constant(options.volume_s))
-rho2.interpolate(Constant(1.0), mesh.measure_set("cell", 4))
-
 rho3.interpolate(Constant(options.volume_r))
-rho3.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
 s.interpolate(Constant(options.steamy))
 
 rho = as_vector([rho2, rho3, s])
@@ -86,14 +83,16 @@ epsilon = Constant(options.epsilon)
 kappa_d_e = Constant(kappa / epsilon)
 kappa_m_e = Constant(kappa * epsilon)
 
-# Define the traction force and predescribed displacement
+# Define the boundary/traction force and stimulus
 f = Constant((0, -1.0))
-u_star = Constant((0, 1.0))
+e1 = Constant((1, 0))
+e2 = Constant((0, 1))
+S = -1 * outer(e1, e1) + outer(e2, e2)
 
 # Young's modulus of the beam and poisson ratio
 E_v = Constant(delta)
 E_s = Constant(options.esmodulus)
-E_r = Constant(options.ermodulus)
+# E_r = Constant(options.ermodulus)
 nu = Constant(0.3) #nu poisson ratio
 
 mu_v = E_v/(2 * (1 + nu))
@@ -102,8 +101,11 @@ lambda_v = (E_v * nu)/((1 + nu) * (1 - 2 * nu))
 mu_s = E_s/(2 * (1 + nu))
 lambda_s = (E_s * nu)/((1 + nu) * (1 - 2 * nu))
 
-mu_r = E_r/(2 * (1 + nu))
-lambda_r = (E_r * nu)/((1 + nu) * (1 - 2 * nu))
+mu_r = (Constant(options.ratio) * E_s)/(2 * (1 + nu))
+lambda_r = (Constant(options.ratio) * nu * E_s)/((1 + nu) * (1 - 2 * nu))
+
+mu_t = (delta + E_s + Constant(options.ratio) * E_s)/(2 * (1 + nu))
+lambda_t = ((delta + E_s + Constant(options.ratio) * E_s) * nu)/((1 + nu) * (1 - 2 * nu))
 
 def v_v(rho):
 	return 1 - rho.sub(0) - rho.sub(1)
@@ -125,6 +127,9 @@ def h_s(rho):
 # Define h_r(rho)=rho_r^(p)
 def h_r(rho):
 	return pow(rho.sub(1), options.power_p)
+
+def A(rho):
+     return delta * h_v(rho) + h_s(rho) + Constant(options.ratio) * h_r(rho)
 
 def s_s(rho):
 	return rho.sub(2)
@@ -154,6 +159,9 @@ def sigma_s(u, Id):
 def sigma_r(u, Id):
 	return lambda_r * tr(epsilon(u)) * Id + 2 * mu_r * epsilon(u)
 
+def sigma_t(u, Id):
+     return lambda_t * tr(epsilon(u)) * Id + 2 * mu_t * epsilon(u)
+
 # Define test function and beam displacement
 v = TestFunction(VV)
 u = Function(VV, name = "Displacement")
@@ -163,7 +171,7 @@ p = Function(VV, name = "Adjoint variable")
 bcs = DirichletBC(VV, Constant((0, 0)), 7)
 
 # Define the objective function
-J = 0.5 * inner(u - u_star, u - u_star) * dx(4)
+J = inner(f, u) * ds(8)
 func1 = kappa_d_e * W(rho) * dx
 
 func2_sub1 = inner(grad(v_v(rho)), grad(v_v(rho))) * dx
@@ -175,8 +183,8 @@ func2 = kappa_m_e * (func2_sub1 + func2_sub2 + func2_sub3)
 func3 = lagrange_s * v_s(rho) * dx
 func4 = lagrange_r * v_r(rho) * dx
 
-func5 = inner(h_v(rho), pow(s_s(rho), 2)) * dx
-func6 = inner(h_s(rho), pow(s_s(rho), 2)) * dx
+func5 = inner(v_v(rho), pow(s_s(rho), 2)) * dx
+func6 = inner(v_s(rho), pow(s_s(rho), 2)) * dx
 
 # Objective function + Modica-Mortola functional
 P = func1 + func2 + func3 + func4 + func5 + func6
@@ -186,19 +194,20 @@ JJ = J + P
 a_forward_v = h_v(rho) * inner(sigma_v(u, Id), epsilon(v)) * dx
 a_forward_s = h_s(rho) * inner(sigma_s(u, Id), epsilon(v)) * dx
 a_forward_r = h_r(rho) * inner(sigma_r(u, Id), epsilon(v)) * dx
-a_forward = a_forward_v + a_forward_s + a_forward_r
+a_forward = A(rho) * inner(sigma_t(u, Id), epsilon(v)) * dx
 
-L_forward_r = s_s(rho) * h_r(rho) * inner(sigma_A(Id, Id), epsilon(v)) * dx
+L_forward_r = s_s(rho) * h_r(rho) * inner(sigma_A(S, Id), epsilon(v)) * dx
 L_forward = inner(f, v) * ds(8) + L_forward_r
 R_fwd = a_forward - L_forward
 
 # Define the Lagrangian
+# The problem is self-adjoint so we replace langrange multiplier(p) with u
 a_lagrange_v = h_v(rho) * inner(sigma_v(u, Id), epsilon(p)) * dx
 a_lagrange_s = h_s(rho) * inner(sigma_s(u, Id), epsilon(p)) * dx
 a_lagrange_r = h_r(rho) * inner(sigma_r(u, Id), epsilon(p)) * dx
-a_lagrange   = a_lagrange_v + a_lagrange_s + a_lagrange_r
+a_lagrange   = A(rho) * inner(sigma_t(u, Id), epsilon(p)) * dx
 
-L_lagrange_r = s_s(rho) * h_r(rho) * inner(sigma_A(Id, Id), epsilon(p)) * dx
+L_lagrange_r = s_s(rho) * h_r(rho) * inner(sigma_A(S, Id), epsilon(p)) * dx
 L_lagrange = inner(f, p) * ds(8) + L_lagrange_r
 R_lagrange = a_lagrange - L_lagrange
 L = JJ - R_lagrange
@@ -207,9 +216,9 @@ L = JJ - R_lagrange
 a_adjoint_v = h_v(rho) * inner(sigma_v(v, Id), epsilon(p)) * dx
 a_adjoint_s = h_s(rho) * inner(sigma_s(v, Id), epsilon(p)) * dx
 a_adjoint_r = h_r(rho) * inner(sigma_r(v, Id), epsilon(p)) * dx
-a_adjoint = a_adjoint_v + a_adjoint_s + a_adjoint_r
+a_adjoint = A(rho) * inner(sigma_t(v, Id), epsilon(p)) * dx
 
-L_adjoint = inner(u - u_star, v) * dx(4)
+L_adjoint = inner(f, v) * ds(8)
 R_adj = a_adjoint - L_adjoint
 
 # Beam .pvd file for saving designs
@@ -268,10 +277,7 @@ def FormObjectiveGradient(tao, x, G):
 
 	# Compute gradiet w.r.t rho2 and rho3 and s
 	dJdrho2.interpolate(assemble(derivative(L, rho.sub(0))))
-	dJdrho2.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
-
 	dJdrho3.interpolate(assemble(derivative(L, rho.sub(1))))
-	dJdrho3.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
 	dJds.interpolate(assemble(derivative(L, rho.sub(2))))
 
 	G.setValues(index_2, dJdrho2.vector().array())
