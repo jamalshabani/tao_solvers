@@ -63,9 +63,11 @@ trace = Function(V, name = "Trace tr(e(u))")
 
 x, y = SpatialCoordinate(mesh)
 rho2.interpolate(Constant(options.volume_s))
+rho2 = interpolate(rho2, V)
 rho2.interpolate(Constant(1.0), mesh.measure_set("cell", 4))
 
 rho3.interpolate(Constant(options.volume_r))
+rho3 = interpolate(rho3, V)
 rho3.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
 s.interpolate(Constant(options.steamy))
 
@@ -189,7 +191,7 @@ a_forward_r = h_r(rho) * inner(sigma_r(u, Id), epsilon(v)) * dx
 a_forward = a_forward_v + a_forward_s + a_forward_r
 
 L_forward_r = s_s(rho) * h_r(rho) * inner(sigma_A(Id, Id), epsilon(v)) * dx
-L_forward = inner(f, v) * ds(8) + L_forward_r
+L_forward = L_forward_r
 R_fwd = a_forward - L_forward
 
 # Define the Lagrangian
@@ -199,7 +201,7 @@ a_lagrange_r = h_r(rho) * inner(sigma_r(u, Id), epsilon(p)) * dx
 a_lagrange   = a_lagrange_v + a_lagrange_s + a_lagrange_r
 
 L_lagrange_r = s_s(rho) * h_r(rho) * inner(sigma_A(Id, Id), epsilon(p)) * dx
-L_lagrange = inner(f, p) * ds(8) + L_lagrange_r
+L_lagrange = L_lagrange_r
 R_lagrange = a_lagrange - L_lagrange
 L = JJ - R_lagrange
 
@@ -215,6 +217,8 @@ R_adj = a_adjoint - L_adjoint
 # Beam .pvd file for saving designs
 beam = File(options.output + '/beam.pvd')
 dJdrho2 = Function(V)
+rho_res = Function(V, name = "Responsive")
+rho_str = Function(V, name = "Structural")
 dJdrho3 = Function(V)
 dJds = Function(V)
 stimulus = Function(V, name = "Stimulus")
@@ -248,9 +252,9 @@ def FormObjectiveGradient(tao, x, G):
 		rho_i.interpolate(rho.sub(1) - rho.sub(0))
 		stimulus.interpolate(rho.sub(2))
 		trace.interpolate(tr(epsilon(u)))
-		rho2.interpolate(rho.sub(0))
-		rho3.interpolate(rho.sub(1))
-		beam.write(rho_i, stimulus, rho2, rho3, trace, u, time = i)
+		rho_str.interpolate(rho.sub(0))
+		rho_res.interpolate(rho.sub(1))
+		beam.write(rho_i, stimulus, rho_str, rho_res, trace, u, time = i)
 
 	with rho.dat.vec as rho_vec:
 		rho_vec.set(0.0)
