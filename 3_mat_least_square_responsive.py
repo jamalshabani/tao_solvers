@@ -62,11 +62,13 @@ s = Function(V, name = "Stimulus")
 trace = Function(V, name = "Trace tr(e(u))")
 
 x, y = SpatialCoordinate(mesh)
-rho2.interpolate(Constant(options.volume_s))
+#rho2.interpolate(Constant(options.volume_s))
+rho2 = 0.5 + 0.5 * sin(10*pi*x) * sin(8*pi*y)
 rho2 = interpolate(rho2, V)
 rho2.interpolate(Constant(1.0), mesh.measure_set("cell", 4))
 
-rho3.interpolate(Constant(options.volume_r))
+#rho3.interpolate(Constant(options.volume_r))
+rho2 = 0.5 + 0.5 * cos(10*pi*x) * cos(8*pi*y)
 rho3 = interpolate(rho3, V)
 rho3.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
 s.interpolate(Constant(options.steamy))
@@ -190,8 +192,7 @@ a_forward_s = h_s(rho) * inner(sigma_s(u, Id), epsilon(v)) * dx
 a_forward_r = h_r(rho) * inner(sigma_r(u, Id), epsilon(v)) * dx
 a_forward = a_forward_v + a_forward_s + a_forward_r
 
-L_forward_r = s_s(rho) * h_r(rho) * inner(sigma_A(Id, Id), epsilon(v)) * dx
-L_forward = inner(f, v) * ds(8) + L_forward_r
+L_forward = s_s(rho) * h_r(rho) * inner(sigma_A(Id, Id), epsilon(v)) * dx
 R_fwd = a_forward - L_forward
 
 # Define the Lagrangian
@@ -200,8 +201,7 @@ a_lagrange_s = h_s(rho) * inner(sigma_s(u, Id), epsilon(p)) * dx
 a_lagrange_r = h_r(rho) * inner(sigma_r(u, Id), epsilon(p)) * dx
 a_lagrange   = a_lagrange_v + a_lagrange_s + a_lagrange_r
 
-L_lagrange_r = s_s(rho) * h_r(rho) * inner(sigma_A(Id, Id), epsilon(p)) * dx
-L_lagrange = inner(f, p) * ds(8) + L_lagrange_r
+L_lagrange = s_s(rho) * h_r(rho) * inner(sigma_A(Id, Id), epsilon(p)) * dx
 R_lagrange = a_lagrange - L_lagrange
 L = JJ - R_lagrange
 
