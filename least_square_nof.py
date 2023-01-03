@@ -3,7 +3,6 @@ def parse():
 	parser = argparse.ArgumentParser()
 	parser.add_argument('-tao_type', '--tao_type', type = str, default = 'bncg', help = 'TAO algorithm type')
 	parser.add_argument('-tao_max_funcs', '--tao_max_funcs', type = int, default = 10000, help = 'TAO maximum functions evaluations')
-	#parser.add_argument('-tao_bncg_type', '--tao_bncg_type', type = str, default = 'gd', help = 'TAO algorithm type')
 	parser.add_argument('-tao_monitor', '--tao_monitor', action = 'store_true', help = 'TAO monitor')
 	parser.add_argument('-ls', '--lagrange_s', type = float, default = 5.0, help = 'Lagrange multiplier for structural material')
 	parser.add_argument('-lr', '--lagrange_r', type = float, default = 0.5, help = 'Lagrange multiplier for responsive material')
@@ -90,8 +89,7 @@ epsilon = Constant(options.epsilon)
 kappa_d_e = Constant(kappa / epsilon)
 kappa_m_e = Constant(kappa * epsilon)
 
-# Define the traction force and predescribed displacement
-f = Constant((0, 0))
+# Define the predescribed displacement
 u_star = Constant((0, 1.0))
 
 # Young's modulus of the beam and poisson ratio
@@ -179,8 +177,9 @@ func2 = kappa_m_e * (func2_sub1 + func2_sub2 + func2_sub3)
 func3 = lagrange_s * v_s(rho) * dx
 func4 = lagrange_r * v_r(rho) * dx
 
-func5 = inner(h_v(rho), pow(s_s(rho), 2)) * dx
-func6 = inner(h_s(rho), pow(s_s(rho), 2)) * dx
+# Change between v_v and v_s with h_v and h_s
+func5 = inner(v_v(rho), pow(s_s(rho), 2)) * dx
+func6 = inner(v_s(rho), pow(s_s(rho), 2)) * dx
 
 # Objective function + Modica-Mortola functional
 P = func1 + func2 + func3 + func4 + func5 + func6
@@ -251,10 +250,10 @@ def FormObjectiveGradient(tao, x, G):
 	if (i%5) == 0:
 		rho_i.interpolate(rho.sub(1) - rho.sub(0))
 		stimulus.interpolate(rho.sub(2))
-		trace.interpolate(tr(epsilon(u)))
+		trace.interpolate(tr(epsilon(p)))
 		rho_str.interpolate(rho.sub(0))
 		rho_res.interpolate(rho.sub(1))
-		beam.write(rho_i, stimulus, rho_str, rho_res, trace, u, time = i)
+		beam.write(rho_i, rho_str, rho_res, trace, u, time = i)
 
 	with rho.dat.vec as rho_vec:
 		rho_vec.set(0.0)
@@ -267,8 +266,8 @@ def FormObjectiveGradient(tao, x, G):
 	solve(R_adj == 0, p, bcs = bcs)
 
 	# Evaluate the objective function
-	# objective_value = assemble(J)
-	# print("The value of objective function is {}".format(objective_value))
+	objective_value = assemble(J)
+	print("The value of objective function is {}".format(objective_value))
 
 	# Compute gradiet w.r.t rho2 and rho3 and s
 	dJdrho2.interpolate(assemble(derivative(L, rho.sub(0))))
@@ -276,7 +275,8 @@ def FormObjectiveGradient(tao, x, G):
 
 	dJdrho3.interpolate(assemble(derivative(L, rho.sub(1))))
 	dJdrho3.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
-	dJds.interpolate(assemble(derivative(L, rho.sub(2))))
+	#dJds.interpolate(assemble(derivative(L, rho.sub(2))))
+	dJds.interpolate(Constant(0.0))
 
 	G.setValues(index_2, dJdrho2.vector().array())
 	G.setValues(index_3, dJdrho3.vector().array())
