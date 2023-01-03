@@ -191,7 +191,7 @@ a_forward_r = h_r(rho) * inner(sigma_r(u, Id), epsilon(v)) * dx
 a_forward = a_forward_v + a_forward_s + a_forward_r
 
 L_forward_r = s_s(rho) * h_r(rho) * inner(sigma_A(Id, Id), epsilon(v)) * dx
-L_forward = L_forward_r
+L_forward = inner(f, v) * ds(8) + L_forward_r
 R_fwd = a_forward - L_forward
 
 # Define the Lagrangian
@@ -201,7 +201,7 @@ a_lagrange_r = h_r(rho) * inner(sigma_r(u, Id), epsilon(p)) * dx
 a_lagrange   = a_lagrange_v + a_lagrange_s + a_lagrange_r
 
 L_lagrange_r = s_s(rho) * h_r(rho) * inner(sigma_A(Id, Id), epsilon(p)) * dx
-L_lagrange = L_lagrange_r
+L_lagrange = inner(f, p) * ds(8) + L_lagrange_r
 R_lagrange = a_lagrange - L_lagrange
 L = JJ - R_lagrange
 
