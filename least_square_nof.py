@@ -275,8 +275,7 @@ def FormObjectiveGradient(tao, x, G):
 
 	dJdrho3.interpolate(assemble(derivative(L, rho.sub(1))))
 	dJdrho3.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
-	#dJds.interpolate(assemble(derivative(L, rho.sub(2))))
-	dJds.interpolate(Constant(0.0))
+	dJds.interpolate(assemble(derivative(L, rho.sub(2))))
 
 	G.setValues(index_2, dJdrho2.vector().array())
 	G.setValues(index_3, dJdrho3.vector().array())
