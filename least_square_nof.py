@@ -85,11 +85,11 @@ kappa_d_e = Constant(kappa / epsilon)
 kappa_m_e = Constant(kappa * epsilon)
 
 # Define the predescribed displacement
-f = Constant((0, -1.0))
+f = Constant((0, -1.0e-1))
 u_star = Constant((0, 1.0))
 
 # Young's modulus of the beam and poisson ratio
-E_v = Constant(1.0e-5)
+E_v = Constant(1.0e-3)
 E_s = Constant(options.esmodulus)
 E_r = Constant(options.ermodulus)
 nu = Constant(0.3) #nu poisson ratio
