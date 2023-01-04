@@ -41,14 +41,11 @@ mesh = Mesh(options.mesh)
 Id = Identity(mesh.geometric_dimension()) #Identity tensor
 
 # Define the function spaces
-# Try using DG0 function space
-
 V = FunctionSpace(mesh, 'CG', 1)
 VV = VectorFunctionSpace(mesh, 'CG', 1, dim = 2)
 VVV = VectorFunctionSpace(mesh, 'CG', 1, dim = 3)
 
 # Create initial design
-###### Begin Initial Design #####
 mesh_coordinates = mesh.coordinates.dat.data[:]
 M = len(mesh_coordinates)
 
@@ -83,7 +80,6 @@ lagrange_s = Constant(options.lagrange_s)
 # Total volume of the domain |omega|
 omega = assemble(interpolate(Constant(1.0), V) * dx)
 
-delta = Constant(1.0e-3)
 epsilon = Constant(options.epsilon)
 kappa_d_e = Constant(kappa / epsilon)
 kappa_m_e = Constant(kappa * epsilon)
@@ -92,7 +88,7 @@ kappa_m_e = Constant(kappa * epsilon)
 u_star = Constant((0, 1.0))
 
 # Young's modulus of the beam and poisson ratio
-E_v = Constant(delta)
+E_v = Constant(1.0e-5)
 E_s = Constant(options.esmodulus)
 E_r = Constant(options.ermodulus)
 nu = Constant(0.3) #nu poisson ratio
@@ -177,8 +173,8 @@ func3 = lagrange_s * v_s(rho) * dx
 func4 = lagrange_r * v_r(rho) * dx
 
 # Change between v_v and v_s with h_v and h_s
-func5 = inner(v_v(rho), pow(s_s(rho), 2)) * dx
-func6 = inner(v_s(rho), pow(s_s(rho), 2)) * dx
+func5 = inner(h_v(rho), pow(s_s(rho), 2)) * dx
+func6 = inner(h_s(rho), pow(s_s(rho), 2)) * dx
 
 # Objective function + Modica-Mortola functional
 P = func1 + func2 + func3 + func4 + func5 + func6
@@ -284,7 +280,7 @@ def FormObjectiveGradient(tao, x, G):
 	return f_val
 
 # Setting lower and upper bounds
-lb = as_vector((0, 0, -1))
+lb = as_vector((0, 0, 0))
 ub = as_vector((1, 1, 1))
 lb = interpolate(lb, VVV)
 ub = interpolate(ub, VVV)
