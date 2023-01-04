@@ -85,7 +85,6 @@ kappa_d_e = Constant(kappa / epsilon)
 kappa_m_e = Constant(kappa * epsilon)
 
 # Define the predescribed displacement
-f = Constant((0, -1.0e-1))
 u_star = Constant((0, 1.0))
 
 # Young's modulus of the beam and poisson ratio
@@ -162,48 +161,48 @@ bcs = DirichletBC(VV, Constant((0, 0)), 7)
 
 # Define the objective function
 J = 0.5 * inner(u - u_star, u - u_star) * dx(4)
-func1 = kappa_d_e * W(rho) * dx
+func1 = kappa_d_e * W(rho) * dx(3)
 
-func2_sub1 = inner(grad(v_v(rho)), grad(v_v(rho))) * dx
-func2_sub2 = inner(grad(v_s(rho)), grad(v_s(rho))) * dx
-func2_sub3 = inner(grad(v_r(rho)), grad(v_r(rho))) * dx
+func2_sub1 = inner(grad(v_v(rho)), grad(v_v(rho))) * dx(3)
+func2_sub2 = inner(grad(v_s(rho)), grad(v_s(rho))) * dx(3)
+func2_sub3 = inner(grad(v_r(rho)), grad(v_r(rho))) * dx(3)
 
 func2 = kappa_m_e * (func2_sub1 + func2_sub2 + func2_sub3)
 
-func3 = lagrange_s * v_s(rho) * dx
-func4 = lagrange_r * v_r(rho) * dx
+func3 = lagrange_s * v_s(rho) * dx(3)
+func4 = lagrange_r * v_r(rho) * dx(3)
 
 # Change between v_v and v_s with h_v and h_s
-func5 = inner(h_v(rho), pow(s_s(rho), 2)) * dx
-func6 = inner(h_s(rho), pow(s_s(rho), 2)) * dx
+func5 = inner(h_v(rho), pow(s_s(rho), 2)) * dx(3)
+func6 = inner(h_s(rho), pow(s_s(rho), 2)) * dx(3)
 
 # Objective function + Modica-Mortola functional
 P = func1 + func2 + func3 + func4 + func5 + func6
 JJ = J + P
 
 # Define the weak form for forward PDE
-a_forward_v = h_v(rho) * inner(sigma_v(u, Id), epsilon(v)) * dx
-a_forward_s = h_s(rho) * inner(sigma_s(u, Id), epsilon(v)) * dx
-a_forward_r = h_r(rho) * inner(sigma_r(u, Id), epsilon(v)) * dx
+a_forward_v = h_v(rho) * inner(sigma_v(u, Id), epsilon(v)) * dx(3)
+a_forward_s = h_s(rho) * inner(sigma_s(u, Id), epsilon(v)) * dx(3)
+a_forward_r = h_r(rho) * inner(sigma_r(u, Id), epsilon(v)) * dx(3)
 a_forward = a_forward_v + a_forward_s + a_forward_r
 
-L_forward = inner(f, v) * ds(8) + s_s(rho) * h_r(rho) * inner(sigma_A(Id, Id), epsilon(v)) * dx
+L_forward = s_s(rho) * h_r(rho) * inner(sigma_A(Id, Id), epsilon(v)) * dx(3)
 R_fwd = a_forward - L_forward
 
 # Define the Lagrangian
-a_lagrange_v = h_v(rho) * inner(sigma_v(u, Id), epsilon(p)) * dx
-a_lagrange_s = h_s(rho) * inner(sigma_s(u, Id), epsilon(p)) * dx
-a_lagrange_r = h_r(rho) * inner(sigma_r(u, Id), epsilon(p)) * dx
+a_lagrange_v = h_v(rho) * inner(sigma_v(u, Id), epsilon(p)) * dx(3)
+a_lagrange_s = h_s(rho) * inner(sigma_s(u, Id), epsilon(p)) * dx(3)
+a_lagrange_r = h_r(rho) * inner(sigma_r(u, Id), epsilon(p)) * dx(3)
 a_lagrange   = a_lagrange_v + a_lagrange_s + a_lagrange_r
 
-L_lagrange = inner(f, p) * ds(8) + s_s(rho) * h_r(rho) * inner(sigma_A(Id, Id), epsilon(p)) * dx
+L_lagrange = s_s(rho) * h_r(rho) * inner(sigma_A(Id, Id), epsilon(p)) * dx(3)
 R_lagrange = a_lagrange - L_lagrange
 L = JJ - R_lagrange
 
 # Define the weak form for adjoint PDE
-a_adjoint_v = h_v(rho) * inner(sigma_v(v, Id), epsilon(p)) * dx
-a_adjoint_s = h_s(rho) * inner(sigma_s(v, Id), epsilon(p)) * dx
-a_adjoint_r = h_r(rho) * inner(sigma_r(v, Id), epsilon(p)) * dx
+a_adjoint_v = h_v(rho) * inner(sigma_v(v, Id), epsilon(p)) * dx(3)
+a_adjoint_s = h_s(rho) * inner(sigma_s(v, Id), epsilon(p)) * dx(3)
+a_adjoint_r = h_r(rho) * inner(sigma_r(v, Id), epsilon(p)) * dx(3)
 a_adjoint = a_adjoint_v + a_adjoint_s + a_adjoint_r
 
 L_adjoint = inner(u - u_star, v) * dx(4)
