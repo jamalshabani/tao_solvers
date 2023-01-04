@@ -43,13 +43,12 @@ Id = Identity(mesh.geometric_dimension()) #Identity tensor
 # Define the function spaces
 V = FunctionSpace(mesh, 'CG', 1)
 VV = VectorFunctionSpace(mesh, 'CG', 1, dim = 2)
-VVV = VectorFunctionSpace(mesh, 'CG', 1, dim = 3)
 
 # Create initial design
 mesh_coordinates = mesh.coordinates.dat.data[:]
 M = len(mesh_coordinates)
 
-rho =  Function(VVV, name = "Design variable")
+rho =  Function(VV, name = "Design variable")
 rho_i = Function(V, name = "Material density")
 rho2 = Function(V, name = "Structural material")  # Structural material 1(Blue)
 rho3 = Function(V, name = "Responsive material")  # Responsive material 2(Red)
@@ -68,8 +67,8 @@ rho3.interpolate(Constant(options.volume_r))
 rho3.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
 s.interpolate(Constant(options.steamy))
 
-rho = as_vector([rho2, rho3, s])
-rho = interpolate(rho, VVV)
+rho = as_vector([rho2, rho3])
+rho = interpolate(rho, VV)
 ###### End Initial Design #####
 
 # Define the constant parameter used in the problem
@@ -123,9 +122,6 @@ def h_s(rho):
 def h_r(rho):
 	return pow(rho.sub(1), options.power_p)
 
-def s_s(rho):
-	return rho.sub(2)
-
 # Define the double-well potential function
 # W(x, y) = (x + y)^q * (1 - x)^q * (1 - y)^q
 def W(rho):
@@ -161,48 +157,44 @@ bcs = DirichletBC(VV, Constant((0, 0)), 7)
 
 # Define the objective function
 J = 0.5 * inner(u - u_star, u - u_star) * dx(4)
-func1 = kappa_d_e * W(rho) * dx(3)
+func1 = kappa_d_e * W(rho) * dx
 
-func2_sub1 = inner(grad(v_v(rho)), grad(v_v(rho))) * dx(3)
-func2_sub2 = inner(grad(v_s(rho)), grad(v_s(rho))) * dx(3)
-func2_sub3 = inner(grad(v_r(rho)), grad(v_r(rho))) * dx(3)
+func2_sub1 = inner(grad(v_v(rho)), grad(v_v(rho))) * dx
+func2_sub2 = inner(grad(v_s(rho)), grad(v_s(rho))) * dx
+func2_sub3 = inner(grad(v_r(rho)), grad(v_r(rho))) * dx
 
 func2 = kappa_m_e * (func2_sub1 + func2_sub2 + func2_sub3)
 
-func3 = lagrange_s * v_s(rho) * dx(3)
-func4 = lagrange_r * v_r(rho) * dx(3)
-
-# Change between v_v and v_s with h_v and h_s
-func5 = inner(h_v(rho), pow(s_s(rho), 2)) * dx(3)
-func6 = inner(h_s(rho), pow(s_s(rho), 2)) * dx(3)
+func3 = lagrange_s * v_s(rho) * dx
+func4 = lagrange_r * v_r(rho) * dx
 
 # Objective function + Modica-Mortola functional
 P = func1 + func2 + func3 + func4 + func5 + func6
 JJ = J + P
 
 # Define the weak form for forward PDE
-a_forward_v = h_v(rho) * inner(sigma_v(u, Id), epsilon(v)) * dx(3)
-a_forward_s = h_s(rho) * inner(sigma_s(u, Id), epsilon(v)) * dx(3)
-a_forward_r = h_r(rho) * inner(sigma_r(u, Id), epsilon(v)) * dx(3)
+a_forward_v = h_v(rho) * inner(sigma_v(u, Id), epsilon(v)) * dx
+a_forward_s = h_s(rho) * inner(sigma_s(u, Id), epsilon(v)) * dx
+a_forward_r = h_r(rho) * inner(sigma_r(u, Id), epsilon(v)) * dx
 a_forward = a_forward_v + a_forward_s + a_forward_r
 
-L_forward = s_s(rho) * h_r(rho) * inner(sigma_A(Id, Id), epsilon(v)) * dx(3)
+L_forward = h_r(rho) * inner(sigma_A(Id, Id), epsilon(v)) * dx
 R_fwd = a_forward - L_forward
 
 # Define the Lagrangian
-a_lagrange_v = h_v(rho) * inner(sigma_v(u, Id), epsilon(p)) * dx(3)
-a_lagrange_s = h_s(rho) * inner(sigma_s(u, Id), epsilon(p)) * dx(3)
-a_lagrange_r = h_r(rho) * inner(sigma_r(u, Id), epsilon(p)) * dx(3)
+a_lagrange_v = h_v(rho) * inner(sigma_v(u, Id), epsilon(p)) * dx
+a_lagrange_s = h_s(rho) * inner(sigma_s(u, Id), epsilon(p)) * dx
+a_lagrange_r = h_r(rho) * inner(sigma_r(u, Id), epsilon(p)) * dx
 a_lagrange   = a_lagrange_v + a_lagrange_s + a_lagrange_r
 
-L_lagrange = s_s(rho) * h_r(rho) * inner(sigma_A(Id, Id), epsilon(p)) * dx(3)
+L_lagrange = h_r(rho) * inner(sigma_A(Id, Id), epsilon(p)) * dx
 R_lagrange = a_lagrange - L_lagrange
 L = JJ - R_lagrange
 
 # Define the weak form for adjoint PDE
-a_adjoint_v = h_v(rho) * inner(sigma_v(v, Id), epsilon(p)) * dx(3)
-a_adjoint_s = h_s(rho) * inner(sigma_s(v, Id), epsilon(p)) * dx(3)
-a_adjoint_r = h_r(rho) * inner(sigma_r(v, Id), epsilon(p)) * dx(3)
+a_adjoint_v = h_v(rho) * inner(sigma_v(v, Id), epsilon(p)) * dx
+a_adjoint_s = h_s(rho) * inner(sigma_s(v, Id), epsilon(p)) * dx
+a_adjoint_r = h_r(rho) * inner(sigma_r(v, Id), epsilon(p)) * dx
 a_adjoint = a_adjoint_v + a_adjoint_s + a_adjoint_r
 
 L_adjoint = inner(u - u_star, v) * dx(4)
@@ -217,18 +209,15 @@ dJdrho3 = Function(V)
 dJds = Function(V)
 stimulus = Function(V, name = "Stimulus")
 
-N = M * 3
+N = M * 2
 index_2 = []
 index_3 = []
-index_s = []
 
 for i in range(N):
-	if (i%3) == 0:
+	if (i%2) == 0:
 		index_2.append(i)
-	if (i%3) == 1:
+	if (i%2) == 1:
 		index_3.append(i)
-	if (i%3) == 2:
-		index_s.append(i)
 
 def FormObjectiveGradient(tao, x, G):
 
@@ -244,7 +233,6 @@ def FormObjectiveGradient(tao, x, G):
 	i = tao.getIterationNumber()
 	if (i%5) == 0:
 		rho_i.interpolate(rho.sub(1) - rho.sub(0))
-		stimulus.interpolate(rho.sub(2))
 		trace.interpolate(tr(epsilon(p)))
 		rho_str.interpolate(rho.sub(0))
 		rho_res.interpolate(rho.sub(1))
@@ -264,17 +252,15 @@ def FormObjectiveGradient(tao, x, G):
 	objective_value = assemble(J)
 	print("The value of objective function is {}".format(objective_value))
 
-	# Compute gradiet w.r.t rho2 and rho3 and s
+	# Compute gradiet w.r.t rho2 and rho3
 	dJdrho2.interpolate(assemble(derivative(L, rho.sub(0))))
 	dJdrho2.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
 
 	dJdrho3.interpolate(assemble(derivative(L, rho.sub(1))))
 	dJdrho3.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
-	dJds.interpolate(assemble(derivative(L, rho.sub(2))))
 
 	G.setValues(index_2, dJdrho2.vector().array())
 	G.setValues(index_3, dJdrho3.vector().array())
-	G.setValues(index_s, dJds.vector().array())
 
 	f_val = assemble(L)
 	return f_val
