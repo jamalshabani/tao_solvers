@@ -33,7 +33,6 @@ options = parse()
 from firedrake import *
 from petsc4py import PETSc
 import time
-import numpy as np
 
 start = time.time()
 
