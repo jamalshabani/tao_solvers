@@ -178,11 +178,11 @@ func2 = kappa_m_e * (func2_sub1 + func2_sub2 + func2_sub3)
 func3 = lagrange_s * v_s(rho) * dx
 func4 = lagrange_r * v_r(rho) * dx
 
-func5 = inner(h_v(rho), pow(s_s(rho), 2)) * dx
-func6 = inner(h_s(rho), pow(s_s(rho), 2)) * dx
+func5 = inner(v_v(rho), pow(s_s(rho), 2)) * dx
+func6 = inner(v_s(rho), pow(s_s(rho), 2)) * dx
 
 # Objective function + Modica-Mortola functional
-P = func1 + func2 + func3 + func4 + func5 + func6
+P = func1 + func2 + func3 + func4
 JJ = J + P
 
 # Define the weak form for forward PDE
