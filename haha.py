@@ -1,11 +1,13 @@
+# http://www.dolfin-adjoint.org/en/latest/documentation/poisson-topology/poisson-topology.html
+
 from firedrake import *
 from firedrake_adjoint import *
 import ufl
-from petsc4py import *
-from pyadjoint import ipopt
-from pyMMAopt import MMASolver, ReducedInequality
+from pyMMAopt import ReducedInequality, MMASolver
 import os
 import numpy as np
+from pyadjoint.reduced_functional_numpy import set_local
+
 
 V = Constant(0.4)  # volume bound on the control
 p = Constant(5)  # power used in the solid isotropic material with penalisation (SIMP) rule, to encourage the control solution to attain either 0 or 1
@@ -87,20 +89,55 @@ Jhat = ReducedFunctional(J, m, eval_cb_post=eval_cb)
 lb = 0.0
 ub = 1.0
 
-# The volume constraint involves a little bit more work. Following [3E-NW06], inequality constraints are represented as (possibly vector) functions defined such that . The constraint is implemented by subclassing the InequalityConstraint class. (To implement equality constraints, see the documentation for EqualityConstraint.) In this case, our. In order to implement the constraint, we have to implement three methods: one to compute the constraint value, one to compute its Jacobian, and one to return the number of components in the constraint.
-
 # We want V - \int rho dx >= 0, so write this as \int V/delta - rho dx >= 0
 volume_constraint = UFLInequalityConstraint((V - a)*dx, m)
 
+# The volume constraint involves a little bit more work. Following [3E-NW06], inequality constraints are represented as (possibly vector) functions defined such that . The constraint is implemented by subclassing the InequalityConstraint class. (To implement equality constraints, see the documentation for EqualityConstraint.) In this case, our. In order to implement the constraint, we have to implement three methods: one to compute the constraint value, one to compute its Jacobian, and one to return the number of components in the constraint.
+
+class VolumeConstraint(InequalityConstraint):
+    """A class that enforces the volume constraint g(a) = V - a*dx >= 0."""
+
+    def __init__(self, V):
+        self.V = float(V)
+
+        # The derivative of the constraint g(x) is constant (it is the diagonal of the lumped mass matrix for the control function space), so let’s assemble it here once. This is also useful in rapidly calculating the integral each time without re-assembling.
+
+        self.smass = assemble(TestFunction(A) * Constant(1) * dx)
+        self.tmpvec = Function(A)
+
+    def function(self, m):
+        set_local(self.tmpvec, m)     # ufl.log.UFLException: Only full slices (:) allowed.
+        # self.tmpvec.vector().set_local(m.vector().array())  # AttributeError: 'CoordinatelessFunction' object has no attribute 'inner'
+        # self.tmpvec.vector().set_local(m.vector()) # seeting an array element with a sequence
+        
+
+    # Compute the integral of the control over the domain
+
+        integral = self.smass.inner(self.tmpvec.vector())
+        # integral = self.smass.inner(self.tmpvec)
+        # integral = inner(self.smass, self.tmpvec)
+        if MPI.rank(MPI.comm_world) == 0: # not doing this in parallel
+            print("Current control integral: ", integral)
+        return [self.V - integral]
+
+    def jacobian(self, m):
+        return [-self.smass]
+
+    def output_workspace(self):
+        return [0.0]
+
+    def length(self):
+        """Return the number of components in the constraint vector (here, one)."""
+        return 1
+
 # Now that all the ingredients are in place, we can perform the optimisation. The MinimizationProblem class represents the optimisation problem to be solved. We instantiate this and pass it to ipopt to solve:
 
-problem = MinimizationProblem(Jhat, bounds=(lb, ub), constraints=volume_constraint)
+problem = MinimizationProblem(Jhat, bounds=(lb, ub), constraints=VolumeConstraint(V))
 
 parameters = {"maximum_iterations": 100}
 # solver = IPOPTSolver(problem, parameters=parameters)
 solver = MMASolver(problem, parameters=parameters)
 a_opt = solver.solve()
-#a_opt = minimize(Jhat, method='SLSQP', bounds=(lb, ub), constraints=volume_constraint)
 
 # File("output/final_solution.pvd") << a_opt
 File("output/final_solution.pvd").write(a_opt)
