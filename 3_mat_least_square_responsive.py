@@ -134,7 +134,8 @@ def s_s(rho):
 # Define the double-well potential function
 # W(x, y) = (x + y)^q * (1 - x)^q * (1 - y)^q
 def W(rho):
-	return pow((rho.sub(0) + rho.sub(1)), options.power_q) * pow((1 - rho.sub(0)), options.power_q) * pow((1 - rho.sub(1)), options.power_q)
+	z = pow((rho.sub(0) + rho.sub(1)), options.power_q) * pow((1 - rho.sub(0)), options.power_q) * pow((1 - rho.sub(1)), options.power_q)
+	return z/(pow(rho.sub(0), options.power_p) * pow(rho.sub(1), options.power_p) * pow((1 - rho.sub(0) - rho.sub(1)), options.power_p))
 
 # Define strain tensor epsilon(u)
 def epsilon(u):
