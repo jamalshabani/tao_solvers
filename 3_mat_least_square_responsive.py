@@ -134,8 +134,7 @@ def s_s(rho):
 # Define the double-well potential function
 # W(x, y) = (x + y)^q * (1 - x)^q * (1 - y)^q
 def W(rho):
-	z = pow((rho.sub(0) + rho.sub(1)), options.power_q) * pow((1 - rho.sub(0)), options.power_q) * pow((1 - rho.sub(1)), options.power_q)
-	return z/(pow(rho.sub(0), options.power_p) * pow(rho.sub(1), options.power_p) * pow((1 - rho.sub(0) - rho.sub(1)), options.power_p))
+	return pow((rho.sub(0) + rho.sub(1)), options.power_q) * pow((1 - rho.sub(0)), options.power_q) * pow((1 - rho.sub(1)), options.power_q)
 
 # Define strain tensor epsilon(u)
 def epsilon(u):
@@ -178,8 +177,8 @@ func2 = kappa_m_e * (func2_sub1 + func2_sub2 + func2_sub3)
 func3 = lagrange_s * v_s(rho) * dx
 func4 = lagrange_r * v_r(rho) * dx
 
-func5 = inner(v_v(rho), pow(s_s(rho), 2)) * dx
-func6 = inner(v_s(rho), pow(s_s(rho), 2)) * dx
+func5 = v_v(rho) * pow(s_s(rho), 2) * dx
+func6 = v_s(rho) * pow(s_s(rho), 2) * dx
 
 # Objective function + Modica-Mortola functional
 P = func1 + func2 + func3 + func4 + func5 + func6
