@@ -182,7 +182,7 @@ func5 = inner(v_v(rho), pow(s_s(rho), 2)) * dx
 func6 = inner(v_s(rho), pow(s_s(rho), 2)) * dx
 
 # Objective function + Modica-Mortola functional
-P = func1 + func2 + func3 + func4
+P = func1 + func2 + func3 + func4 + func5 + func6
 JJ = J + P
 
 # Define the weak form for forward PDE
