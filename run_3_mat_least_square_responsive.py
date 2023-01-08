@@ -1,8 +1,9 @@
 import subprocess
 
 program_list = ["rm -rf test1", "rm -rf test2", "rm -rf test3",
-                "python3 3_mat_least_square_responsive.py -tao_type bncg -tao_max_funcs 10000 -tao_gatol 1.0e-7 -tao_grtol 1.0e-7 -tao_gttol 1.0e-7 -tao_converged_reason -tao_monitor -tao_max_it 200 -tao_ls_type armijo -m 'motion_nof_mesh2.msh' -o 'test1' -er 150 -es 1.5 -lr 4.0 -ls 0.5 -vr 0.5 -vs 0.5 -k 5.0e-3 -e 1.0e-3 -p 2.0 -q 1.0 -s 1.0",
-                "python3 3_mat_least_square_responsive.py -tao_type bncg -tao_max_funcs 10000 -tao_gatol 1.0e-7 -tao_grtol 1.0e-7 -tao_gttol 1.0e-7 -tao_converged_reason -tao_monitor -tao_max_it 200 -tao_ls_type more-thuente -m 'motion_nof_mesh2.msh' -o 'test2' -er 150 -es 1.5 -lr 4.0 -ls 0.5 -vr 0.5 -vs 0.5 -k 5.0e-3 -e 1.0e-3 -p 2.0 -q 1.0 -s 1.0"]
+                "python3 3_mat_least_square_responsive.py -tao_type bncg -tao_max_funcs 10000 -tao_gatol 1.0e-7 -tao_grtol 1.0e-7 -tao_gttol 1.0e-7 -tao_converged_reason -tao_monitor -tao_max_it 100 -tao_ls_type unit -m 'motion_nof_mesh2.msh' -o 'test1' -er 150 -es 1.5 -lr 10.0 -ls 5.0 -vr 0.3 -vs 0.3 -k 1.0e-1 -e 4.0e-3 -p 2.0 -q 1.0 -s 1.0",
+                "python3 3_mat_least_square_responsive.py -tao_type bncg -tao_max_funcs 10000 -tao_gatol 1.0e-7 -tao_grtol 1.0e-7 -tao_gttol 1.0e-7 -tao_converged_reason -tao_monitor -tao_max_it 100 -tao_ls_type armijo -m 'motion_nof_mesh2.msh' -o 'test2' -er 150 -es 1.5 -lr 10.0 -ls 5.0 -vr 0.5 -vs 0.3 -k 1.0e-1 -e 4.0e-3 -p 2.0 -q 1.0 -s 1.0",
+                "python3 3_mat_least_square_responsive.py -tao_type bncg -tao_max_funcs 10000 -tao_gatol 1.0e-7 -tao_grtol 1.0e-7 -tao_gttol 1.0e-7 -tao_converged_reason -tao_monitor -tao_max_it 100 -tao_ls_type more-thuente -m 'motion_nof_mesh2.msh' -o 'test3' -er 150 -es 1.5 -lr 10.0 -ls 5.0 -vr 0.5 -vs 0.3 -k 1.0e-1 -e 4.0e-3 -p 2.0 -q 1.0 -s 1.0"]
 
 
 

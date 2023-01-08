@@ -190,7 +190,7 @@ a_forward_s = h_s(rho) * inner(sigma_s(u, Id), epsilon(v)) * dx
 a_forward_r = h_r(rho) * inner(sigma_r(u, Id), epsilon(v)) * dx
 a_forward = a_forward_v + a_forward_s + a_forward_r
 
-L_forward = s_s(rho) * h_r(rho) * inner(sigma_A(Id, Id), epsilon(v)) * dx
+L_forward = s_s(rho) * inner(sigma_A(Id, Id), epsilon(v)) * dx
 R_fwd = a_forward - L_forward
 
 # Define the Lagrangian
@@ -199,7 +199,7 @@ a_lagrange_s = h_s(rho) * inner(sigma_s(u, Id), epsilon(p)) * dx
 a_lagrange_r = h_r(rho) * inner(sigma_r(u, Id), epsilon(p)) * dx
 a_lagrange   = a_lagrange_v + a_lagrange_s + a_lagrange_r
 
-L_lagrange = s_s(rho) * h_r(rho) * inner(sigma_A(Id, Id), epsilon(p)) * dx
+L_lagrange = s_s(rho) * inner(sigma_A(Id, Id), epsilon(p)) * dx
 R_lagrange = a_lagrange - L_lagrange
 L = JJ - R_lagrange
 
@@ -274,7 +274,7 @@ def FormObjectiveGradient(tao, x, G):
 
 	dJdrho3.interpolate(assemble(derivative(L, rho.sub(1))))
 	dJdrho3.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
-	dJds.interpolate(assemble(derivative(L, rho.sub(2))))
+	dJds.interpolate(Constant(0.0))
 
 	G.setValues(index_2, dJdrho2.vector().array())
 	G.setValues(index_3, dJdrho3.vector().array())
