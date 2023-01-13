@@ -53,24 +53,24 @@ M = len(mesh_coordinates)
 
 rho =  Function(VVV, name = "Design variable")
 rho_i = Function(V, name = "Material density")
-rho2 = Function(V, name = "Structural material")  # Structural material 1(Blue)
-rho3 = Function(V, name = "Responsive material")  # Responsive material 2(Red)
+rho_s = Function(V, name = "Structural material")  # Structural material 1(Blue)
+rho_r = Function(V, name = "Responsive material")  # Responsive material 2(Red)
 s = Function(V, name = "Stimulus")
 trace = Function(V, name = "Trace")
 
 x, y = SpatialCoordinate(mesh)
-rho2.interpolate(Constant(options.volume_s))
-rho2 = 0.5 + 0.5 * sin(10*pi*x) * sin(8*pi*y)
+rho_s.interpolate(Constant(options.volume_s))
+# rho2 = 0.5 + 0.5 * sin(10*pi*x) * sin(8*pi*y)
 #rho2 = interpolate(rho2, V)
 # rho2.interpolate(Constant(1.0), mesh.measure_set("cell", 4))
 
-rho3.interpolate(Constant(options.volume_r))
-rho3 = 0.5 + 0.5 * cos(10*pi*x) * cos(8*pi*y)
+rho_r.interpolate(Constant(options.volume_r))
+#rho3 = 0.5 + 0.5 * cos(10*pi*x) * cos(8*pi*y)
 #rho3 = interpolate(rho3, V)
 # rho3.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
 s.interpolate(Constant(options.steamy))
 
-rho = as_vector([rho2, rho3, s])
+rho = as_vector([1.0 - rho_s - rho_r, rho_s, rho_r])
 rho = interpolate(rho, VVV)
 ###### End Initial Design #####
 
@@ -106,33 +106,30 @@ mu_r = E_r/(2 * (1 + nu))
 lambda_r = (E_r * nu)/((1 + nu) * (1 - 2 * nu))
 
 def v_v(rho):
-	return 1 - rho.sub(0) - rho.sub(1)
-
-def v_s(rho):
 	return rho.sub(0)
 
-def v_r(rho):
+def v_s(rho):
 	return rho.sub(1)
 
-# Define h_v(rho)=rho_v^(p)
+def v_r(rho):
+	return rho.sub(2)
+
+# Define h_v(rho)=rhov^(p)
 def h_v(rho):
-	return pow((1 - rho.sub(0) - rho.sub(1)), options.power_p)
+	return pow(rho.sub(0), options.power_p)
 
 # Define h_s(rho)=rho_s^(p)
 def h_s(rho):
-	return pow(rho.sub(0), options.power_p)
+	return pow(rho.sub(1), options.power_p)
 
 # Define h_r(rho)=rho_r^(p)
 def h_r(rho):
-	return pow(rho.sub(1), options.power_p)
-
-def s_s(rho):
-	return rho.sub(2)
+	return pow(rho.sub(2), options.power_p)
 
 # Define the double-well potential function
 # W(x, y) = (x + y)^q * (1 - x)^q * (1 - y)^q
 def W(rho):
-	return pow((rho.sub(0) + rho.sub(1)), options.power_q) * pow((1 - rho.sub(0)), options.power_q) * pow((1 - rho.sub(1)), options.power_q)
+	return pow((1 - rho.sub(0)), options.power_q) * pow((1 - rho.sub(1)), options.power_q) * pow((1 - rho.sub(2)), options.power_q)
 
 # Define strain tensor epsilon(u)
 def epsilon(u):
@@ -170,16 +167,16 @@ func2_sub1 = inner(grad(v_v(rho)), grad(v_v(rho))) * dx
 func2_sub2 = inner(grad(v_s(rho)), grad(v_s(rho))) * dx
 func2_sub3 = inner(grad(v_r(rho)), grad(v_r(rho))) * dx
 
-func2 = kappa_m_e * (func2_sub1 + func2_sub2 + func2_sub3)
+func2 = kappa_m_e * inner(grad(rho), grad(rho)) * dx
 
 func3 = lagrange_s * v_s(rho) * dx
 func4 = lagrange_r * v_r(rho) * dx
 
-func5 = h_v(rho) * pow(s_s(rho), 2) * dx
-func6 = h_s(rho) * pow(s_s(rho), 2) * dx
+# func5 = h_v(rho) * pow(s_s(rho), 2) * dx
+# func6 = h_s(rho) * pow(s_s(rho), 2) * dx
 
 # Objective function + Modica-Mortola functional
-P = func1 + func2 + func3 + func4 + func5 + func6
+P = func1 + func2 + func3 + func4
 JJ = J + P
 
 # Define the weak form for forward PDE
@@ -188,7 +185,7 @@ a_forward_s = h_s(rho) * inner(sigma_s(u, Id), epsilon(v)) * dx
 a_forward_r = h_r(rho) * inner(sigma_r(u, Id), epsilon(v)) * dx
 a_forward = a_forward_v + a_forward_s + a_forward_r
 
-L_forward = s_s(rho) * h_r(rho) * inner(sigma_A(Id, Id), epsilon(v)) * dx
+L_forward = h_r(rho) * inner(sigma_A(Id, Id), epsilon(v)) * dx
 R_fwd = a_forward - L_forward
 
 # Define the Lagrangian
@@ -197,7 +194,7 @@ a_lagrange_s = h_s(rho) * inner(sigma_s(u, Id), epsilon(p)) * dx
 a_lagrange_r = h_r(rho) * inner(sigma_r(u, Id), epsilon(p)) * dx
 a_lagrange   = a_lagrange_v + a_lagrange_s + a_lagrange_r
 
-L_lagrange = s_s(rho) * h_r(rho) * inner(sigma_A(Id, Id), epsilon(p)) * dx
+L_lagrange = h_r(rho) * inner(sigma_A(Id, Id), epsilon(p)) * dx
 R_lagrange = a_lagrange - L_lagrange
 L = JJ - R_lagrange
 
@@ -212,25 +209,29 @@ R_adj = a_adjoint - L_adjoint
 
 # Beam .pvd file for saving designs
 beam = File(options.output + '/beam.pvd')
+
+dJdrho0 = Function(V)
+dJdrho1 = Function(V)
 dJdrho2 = Function(V)
-rho_res = Function(V, name = "Responsive")
+
+rho_void = Function(V, name = "Void")
 rho_str = Function(V, name = "Structural")
-dJdrho3 = Function(V)
-dJds = Function(V)
+rho_res = Function(V, name = "Responsive")
+
 stimulus = Function(V, name = "Stimulus")
 
 N = M * 3
+index_0 = []
+index_1 = []
 index_2 = []
-index_3 = []
-index_s = []
 
 for i in range(N):
 	if (i%3) == 0:
-		index_2.append(i)
+		index_0.append(i)
 	if (i%3) == 1:
-		index_3.append(i)
+		index_1.append(i)
 	if (i%3) == 2:
-		index_s.append(i)
+		index_2.append(i)
 
 def FormObjectiveGradient(tao, x, G):
 
@@ -245,12 +246,12 @@ def FormObjectiveGradient(tao, x, G):
 
 	i = tao.getIterationNumber()
 	if (i%5) == 0:
-		rho_i.interpolate(rho.sub(1) - rho.sub(0))
-		stimulus.interpolate(rho.sub(2))
-		trace.interpolate(tr(epsilon(u)))
-		rho_str.interpolate(rho.sub(0))
-		rho_res.interpolate(rho.sub(1))
-		beam.write(rho_i, stimulus, rho_str, rho_res, trace, u, time = i)
+		rho_i.interpolate(rho.sub(2) - rho.sub(1))
+		trace.interpolate(tr(epsilon(p)))
+		rho_void.interpolate(rho.sub(0))
+		rho_str.interpolate(rho.sub(1))
+		rho_res.interpolate(rho.sub(2))
+		beam.write(rho_i, rho_void, rho_str, rho_res, trace, u, time = i)
 
 	with rho.dat.vec as rho_vec:
 		rho_vec.set(0.0)
@@ -267,22 +268,22 @@ def FormObjectiveGradient(tao, x, G):
 	# print("The value of objective function is {}".format(objective_value))
 
 	# Compute gradiet w.r.t rho2 and rho3 and s
-	dJdrho2.interpolate(assemble(derivative(L, rho.sub(0))))
+	dJdrho0.interpolate(assemble(derivative(L, rho.sub(0))))
 	# dJdrho2.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
 
-	dJdrho3.interpolate(assemble(derivative(L, rho.sub(1))))
+	dJdrho1.interpolate(assemble(derivative(L, rho.sub(1))))
 	# dJdrho3.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
-	dJds.interpolate(assemble(derivative(L, rho.sub(2))))
+	dJdrho2.interpolate(assemble(derivative(L, rho.sub(2))))
 
+	G.setValues(index_0, dJdrho0.vector().array())
+	G.setValues(index_1, dJdrho1.vector().array())
 	G.setValues(index_2, dJdrho2.vector().array())
-	G.setValues(index_3, dJdrho3.vector().array())
-	G.setValues(index_s, dJds.vector().array())
 
 	f_val = assemble(L)
 	return f_val
 
 # Setting lower and upper bounds
-lb = as_vector((0, 0, -1))
+lb = as_vector((0, 0, 0))
 ub = as_vector((1, 1, 1))
 lb = interpolate(lb, VVV)
 ub = interpolate(ub, VVV)
