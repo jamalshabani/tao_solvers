@@ -53,6 +53,7 @@ M = len(mesh_coordinates)
 
 rho =  Function(VVV, name = "Design variable")
 rho_i = Function(V, name = "Material density")
+rho_v = Function(V, name = "Void material")  # Structural material 1(Blue)
 rho_s = Function(V, name = "Structural material")  # Structural material 1(Blue)
 rho_r = Function(V, name = "Responsive material")  # Responsive material 2(Red)
 s = Function(V, name = "Stimulus")
@@ -65,12 +66,13 @@ rho_s.interpolate(Constant(options.volume_s))
 # rho2.interpolate(Constant(1.0), mesh.measure_set("cell", 4))
 
 rho_r.interpolate(Constant(options.volume_r))
+rho_v.interpolate(Constant(1.0 - options.volume_s - options.volume_r))
 #rho3 = 0.5 + 0.5 * cos(10*pi*x) * cos(8*pi*y)
 #rho3 = interpolate(rho3, V)
 # rho3.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
 s.interpolate(Constant(options.steamy))
 
-rho = as_vector([1.0 - rho_s - rho_r, rho_s, rho_r])
+rho = as_vector([rho_v, rho_s, rho_r])
 rho = interpolate(rho, VVV)
 ###### End Initial Design #####
 
