@@ -31,6 +31,7 @@ def parse():
 options = parse()
 
 from firedrake import *
+from firedrake_adjoint import *
 from petsc4py import PETSc
 import time
 import numpy as np
