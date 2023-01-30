@@ -62,12 +62,12 @@ x, y = SpatialCoordinate(mesh)
 rho2.interpolate(Constant(options.volume_s))
 #rho2 = 0.5 + 0.5 * sin(10*pi*x) * sin(8*pi*y)
 #rho2 = interpolate(rho2, V)
-rho2.interpolate(Constant(1.0), mesh.measure_set("cell", 4))
+#rho2.interpolate(Constant(1.0), mesh.measure_set("cell", 4))
 
 rho3.interpolate(Constant(options.volume_r))
 #rho3 = 0.5 + 0.5 * cos(10*pi*x) * cos(8*pi*y)
 #rho3 = interpolate(rho3, V)
-rho3.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
+#rho3.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
 s.interpolate(Constant(options.steamy))
 
 rho = as_vector([rho2, rho3, s])
@@ -163,7 +163,7 @@ p = Function(VV, name = "Adjoint variable")
 bcs = DirichletBC(VV, Constant((0, 0)), 7)
 
 # Define the objective function
-J = 0.5 * inner(u - u_star, u - u_star) * dx(4)
+J = 0.5 * inner(u - u_star, u - u_star) * dx
 func1 = kappa_d_e * W(rho) * dx
 
 func2_sub1 = inner(grad(v_v(rho)), grad(v_v(rho))) * dx
@@ -207,7 +207,7 @@ a_adjoint_s = h_s(rho) * inner(sigma_s(v, Id), grad(p)) * dx
 a_adjoint_r = h_r(rho) * inner(sigma_r(v, Id), grad(p)) * dx
 a_adjoint = a_adjoint_v + a_adjoint_s + a_adjoint_r
 
-L_adjoint = dot(u - u_star, v) * dx(4)
+L_adjoint = dot(u - u_star, v) * dx
 R_adj = a_adjoint - L_adjoint
 
 # Beam .pvd file for saving designs
@@ -268,10 +268,10 @@ def FormObjectiveGradient(tao, x, G):
 
 	# Compute gradiet w.r.t rho2 and rho3 and s
 	dJdrho2.interpolate(assemble(derivative(L, rho.sub(0))))
-	dJdrho2.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
+	#dJdrho2.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
 
 	dJdrho3.interpolate(assemble(derivative(L, rho.sub(1))))
-	dJdrho3.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
+	#dJdrho3.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
 	dJds.interpolate(assemble(derivative(L, rho.sub(2))))
 
 	G.setValues(index_2, dJdrho2.vector().array())
