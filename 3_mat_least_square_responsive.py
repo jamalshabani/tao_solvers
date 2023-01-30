@@ -163,7 +163,7 @@ p = Function(VV, name = "Adjoint variable")
 bcs = DirichletBC(VV, Constant((0, 0)), 7)
 
 # Define the objective function
-J = 0.5 * inner(u - u_star, u - u_star) * dx
+J = 0.5 * dot(u - u_star, u - u_star) * dxc(4)
 func1 = kappa_d_e * W(rho) * dx
 
 func2_sub1 = inner(grad(v_v(rho)), grad(v_v(rho))) * dx
@@ -188,7 +188,7 @@ a_forward_s = h_s(rho) * inner(sigma_s(u, Id), grad(v)) * dx
 a_forward_r = h_r(rho) * inner(sigma_r(u, Id), grad(v)) * dx
 a_forward = a_forward_v + a_forward_s + a_forward_r
 
-L_forward = s_s(rho) * h_r(rho) * inner(sigma_A(Id, Id), grad(v)) * dx
+L_forward = s_s(rho) * inner(sigma_A(Id, Id), grad(v)) * dx
 R_fwd = a_forward - L_forward
 
 # Define the Lagrangian
@@ -197,7 +197,7 @@ a_lagrange_s = h_s(rho) * inner(sigma_s(u, Id), grad(p)) * dx
 a_lagrange_r = h_r(rho) * inner(sigma_r(u, Id), grad(p)) * dx
 a_lagrange   = a_lagrange_v + a_lagrange_s + a_lagrange_r
 
-L_lagrange = s_s(rho) * h_r(rho) * inner(sigma_A(Id, Id), grad(p)) * dx
+L_lagrange = s_s(rho) * inner(sigma_A(Id, Id), grad(p)) * dx
 R_lagrange = a_lagrange - L_lagrange
 L = JJ - R_lagrange
 
@@ -207,7 +207,7 @@ a_adjoint_s = h_s(rho) * inner(sigma_s(v, Id), grad(p)) * dx
 a_adjoint_r = h_r(rho) * inner(sigma_r(v, Id), grad(p)) * dx
 a_adjoint = a_adjoint_v + a_adjoint_s + a_adjoint_r
 
-L_adjoint = dot(u - u_star, v) * dx
+L_adjoint = dot(u - u_star, v) * dxc(4)
 R_adj = a_adjoint - L_adjoint
 
 # Beam .pvd file for saving designs
