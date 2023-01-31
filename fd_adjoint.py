@@ -1,4 +1,3 @@
-# http://www.dolfin-adjoint.org/en/latest/documentation/poisson-topology/poisson-topology.html
 
 from firedrake import *
 from firedrake_adjoint import *
