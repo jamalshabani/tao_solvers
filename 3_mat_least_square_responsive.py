@@ -128,7 +128,7 @@ def h_r(rho):
 	return pow(rho.sub(1), options.power_p)
 
 def s_s(rho):
-	return rho.sub(2)
+	return pow(rho.sub(2), options.power_q)
 
 # Define the double-well potential function
 # W(x, y) = (x + y)^q * (1 - x)^q * (1 - y)^q
@@ -145,15 +145,15 @@ def sigma_A(A, Id):
 
 # Define the stress tensor sigma_v(u) for void
 def sigma_v(u, Id):
-	return lambda_v * tr(epsilon(u)) * Id + 2 * mu_v * epsilon(u)
+	return lambda_v * div(u) * Id + 2 * mu_v * epsilon(u)
 
 # Define the stress tensor sigma_s(u) for structural material
 def sigma_s(u, Id):
-	return lambda_s * tr(epsilon(u)) * Id + 2 * mu_s * epsilon(u)
+	return lambda_s * div(u) * Id + 2 * mu_s * epsilon(u)
 
 # Define the stress tensor sigma_r(u) for responsive material
 def sigma_r(u, Id):
-	return lambda_r * tr(epsilon(u)) * Id + 2 * mu_r * epsilon(u)
+	return lambda_r * div(u) * Id + 2 * mu_r * epsilon(u)
 
 # Define test function and beam displacement
 v = TestFunction(VV)
@@ -164,7 +164,7 @@ p = Function(VV, name = "Adjoint variable")
 bcs = DirichletBC(VV, Constant((0, 0)), 7)
 
 # Define the objective function
-J = 0.5 * dot(u - u_star, u - u_star) * dx(4)
+J = 0.5 * inner(u - u_star, u - u_star) * dx(4)
 func1 = kappa_d_e * W(rho) * dx
 
 func2_sub1 = inner(grad(v_v(rho)), grad(v_v(rho))) * dx
@@ -208,7 +208,7 @@ a_adjoint_s = h_s(rho) * inner(sigma_s(v, Id), epsilon(p)) * dx
 a_adjoint_r = h_r(rho) * inner(sigma_r(v, Id), epsilon(p)) * dx
 a_adjoint = a_adjoint_v + a_adjoint_s + a_adjoint_r
 
-L_adjoint = dot(u - u_star, v) * dxc(4)
+L_adjoint = inner(u - u_star, v) * dx(4)
 R_adj = a_adjoint - L_adjoint
 
 # Beam .pvd file for saving designs
