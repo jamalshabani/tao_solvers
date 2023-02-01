@@ -89,7 +89,10 @@ kappa_d_e = Constant(kappa / epsilon)
 kappa_m_e = Constant(kappa * epsilon)
 
 # Define the traction force and predescribed displacement
-u_star = Constant((0, 1.0))
+u_star = as_vector((0, 1.0))
+u_star = interpolate(u_star, VV)
+f = as_vector((0, -1.0e1))
+f = interpolate(f, VV)
 
 # Young's modulus of the beam and poisson ratio
 E_v = Constant(delta)
