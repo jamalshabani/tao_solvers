@@ -128,20 +128,40 @@ class VolumeConstraint(InequalityConstraint):
         return 1
 
 # Now that all the ingredients are in place, we can perform the optimisation. The MinimizationProblem class represents the optimisation problem to be solved. We instantiate this and pass it to ipopt to solve:
-tape = get_working_tape()
-tape.progress_bar = ProgressBar
+# tape = get_working_tape()
+# tape.progress_bar = ProgressBar
 
 # a_opt = minimize(Jhat)
-a_opt = minimize(Jhat, method = "L-BFGS-B",
-                 tol=2e-08, bounds = (-1, 1), options = {"disp": True})
+# a_opt = minimize(Jhat, method = "L-BFGS-B",
+#                  tol=2e-08, bounds = (-1, 1), options = {"disp": True})
 
-problem = MinimizationProblem(Jhat, bounds=(lb, ub), constraints=VolumeConstraint(V))
+problem = MinimizationProblem(Jhat, bounds=(lb, ub), constraints=volume_constraint)
 parameters = {"acceptable_tol": 1.0e-3, "maximum_iterations": 100}
-solver = IPOPTSolver(problem, parameters=parameters)
-# a_opt = solver.solve()
+params = {
+        'General': {
+            'Secant': {'Type': 'Limited-Memory BFGS', 'Maximum Storage': 10}},
+        'Step': {
+            'Type': 'Augmented Lagrangian',
+            'Line Search': {
+                'Descent Method': {
+                    'Type': 'Quasi-Newton Step'
+                }
+            },
+            'Augmented Lagrangian': {
+                'Subproblem Step Type': 'Line Search',
+                'Subproblem Iteration Limit': 1
+            }
+        },
+        'Status Test': {
+            'Gradient Tolerance': 1e-7,
+            'Iteration Limit': 3
+        }
+    }
+solver = ROLSolver(problem, parameters=params)
+a_opt = solver.solve()
 
 # File("output/final_solution.pvd") << a_opt
-# File("output/final_solution.pvd").write(a_opt)
+File("output/final_solution.pvd").write(a_opt)
 # xdmf_filename = XDMFFile(MPI.comm_world, "output/final_solution.xdmf")
 # xdmf_filename.write(a_opt)
 print("Done")
