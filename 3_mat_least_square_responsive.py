@@ -159,7 +159,7 @@ def sigma_r(u, Id):
 # Define test function and beam displacement
 v = TestFunction(VV)
 u = Function(VV, name = "Displacement")
-u2 = Function(VV, name = "Displacement")
+us = Function(VV, name = "Displacement")
 p = Function(VV, name = "Adjoint variable")
 
 # The left side of the beam is clamped
@@ -191,10 +191,10 @@ a_forward_s = h_s(rho) * inner(sigma_s(u, Id), epsilon(v)) * dx
 a_forward_r = h_r(rho) * inner(sigma_r(u, Id), epsilon(v)) * dx
 a_forward = a_forward_v + a_forward_s + a_forward_r
 
-L_forward = inner(f, v) * ds(8) + s_s(rho) * h_r(rho) * inner(sigma_A(Id, Id), epsilon(v)) * dx
-L_forward2 = s_s(rho) * h_r(rho) * inner(sigma_A(Id, Id), epsilon(v)) * dx
+L_forward = inner(f, v) * ds(8) * s_s(rho) * h_r(rho) * inner(sigma_A(Id, Id), epsilon(v)) * dx
+L_forward_s = s_s(rho) * h_r(rho) * inner(sigma_A(Id, Id), epsilon(v)) * dx
 R_fwd = a_forward - L_forward
-R_fwd2 = a_forward - L_forward2
+R_fwd_s = a_forward - L_forward_s
 
 # Define the Lagrangian
 a_lagrange_v = h_v(rho) * inner(sigma_v(u, Id), epsilon(p)) * dx
@@ -202,7 +202,7 @@ a_lagrange_s = h_s(rho) * inner(sigma_s(u, Id), epsilon(p)) * dx
 a_lagrange_r = h_r(rho) * inner(sigma_r(u, Id), epsilon(p)) * dx
 a_lagrange   = a_lagrange_v + a_lagrange_s + a_lagrange_r
 
-L_lagrange = s_s(rho) * h_r(rho) * inner(sigma_A(Id, Id), epsilon(p)) * dx
+L_lagrange = inner(f, p) * ds(8) + s_s(rho) * h_r(rho) * inner(sigma_A(Id, Id), epsilon(p)) * dx
 R_lagrange = a_lagrange - L_lagrange
 L = JJ - R_lagrange
 
@@ -255,15 +255,16 @@ def FormObjectiveGradient(tao, x, G):
 		trace.interpolate(tr(epsilon(u)))
 		rho_str.interpolate(rho.sub(0))
 		rho_res.interpolate(rho.sub(1))
-		beam.write(rho_i, stimulus, rho_str, rho_res, trace, u2, time = i)
+		beam.write(rho_i, stimulus, rho_str, rho_res, trace, us, time = i)
 
 	with rho.dat.vec as rho_vec:
 		rho_vec.set(0.0)
 		rho_vec.axpy(1.0, x)
 
+
 	# Solve forward PDE
 	solve(R_fwd == 0, u, bcs = bcs)
-	solve(R_fwd2 == 0, u2, bcs = bcs)
+	solve(R_fwd_s == 0, us, bcs = bcs)
 
 	# Solve adjoint PDE
 	solve(R_adj == 0, p, bcs = bcs)
