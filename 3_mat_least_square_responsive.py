@@ -255,7 +255,6 @@ def FormObjectiveGradient(tao, x, G):
 		trace.interpolate(tr(epsilon(u)))
 		rho_str.interpolate(rho.sub(0))
 		rho_res.interpolate(rho.sub(1))
-		solve(R_fwd == 0, u2, bcs = bcs)
 		beam.write(rho_i, stimulus, rho_str, rho_res, trace, u2, time = i)
 
 	with rho.dat.vec as rho_vec:
@@ -264,6 +263,7 @@ def FormObjectiveGradient(tao, x, G):
 
 	# Solve forward PDE
 	solve(R_fwd == 0, u, bcs = bcs)
+	solve(R_fwd2 == 0, u2, bcs = bcs)
 
 	# Solve adjoint PDE
 	solve(R_adj == 0, p, bcs = bcs)
