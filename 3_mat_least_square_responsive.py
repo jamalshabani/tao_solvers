@@ -90,7 +90,7 @@ kappa_m_e = Constant(kappa * epsilon)
 
 # Define the traction force and predescribed displacement
 u_star = Constant((0, 1.0))
-f = Constant((0, 0))
+f = Constant((0, -1.0))
 
 # Young's modulus of the beam and poisson ratio
 E_v = Constant(delta)
@@ -159,6 +159,7 @@ def sigma_r(u, Id):
 # Define test function and beam displacement
 v = TestFunction(VV)
 u = Function(VV, name = "Displacement")
+u2 = Function(VV, name = "Displacement")
 p = Function(VV, name = "Adjoint variable")
 
 # The left side of the beam is clamped
@@ -190,8 +191,10 @@ a_forward_s = h_s(rho) * inner(sigma_s(u, Id), epsilon(v)) * dx
 a_forward_r = h_r(rho) * inner(sigma_r(u, Id), epsilon(v)) * dx
 a_forward = a_forward_v + a_forward_s + a_forward_r
 
-L_forward = s_s(rho) * h_r(rho) * inner(sigma_A(Id, Id), epsilon(v)) * dx
+L_forward = inner(f, v) * ds(8) + s_s(rho) * h_r(rho) * inner(sigma_A(Id, Id), epsilon(v)) * dx
+L_forward2 = s_s(rho) * h_r(rho) * inner(sigma_A(Id, Id), epsilon(v)) * dx
 R_fwd = a_forward - L_forward
+R_fwd2 = a_forward - L_forward2
 
 # Define the Lagrangian
 a_lagrange_v = h_v(rho) * inner(sigma_v(u, Id), epsilon(p)) * dx
@@ -252,7 +255,8 @@ def FormObjectiveGradient(tao, x, G):
 		trace.interpolate(tr(epsilon(u)))
 		rho_str.interpolate(rho.sub(0))
 		rho_res.interpolate(rho.sub(1))
-		beam.write(rho_i, stimulus, rho_str, rho_res, trace, u, time = i)
+		solve(R_fwd == 0, u2, bcs = bcs)
+		beam.write(rho_i, stimulus, rho_str, rho_res, trace, u2, time = i)
 
 	with rho.dat.vec as rho_vec:
 		rho_vec.set(0.0)
@@ -284,8 +288,8 @@ def FormObjectiveGradient(tao, x, G):
 	return f_val
 
 # Setting lower and upper bounds
-lb = as_vector((0, 0, 0))
-ub = as_vector((1, 1, 10))
+lb = as_vector((0, 0, -1))
+ub = as_vector((1, 1, 1))
 lb = interpolate(lb, VVV)
 ub = interpolate(ub, VVV)
 
