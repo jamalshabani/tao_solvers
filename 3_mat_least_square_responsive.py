@@ -255,7 +255,7 @@ def FormObjectiveGradient(tao, x, G):
 		trace.interpolate(tr(epsilon(u)))
 		rho_str.interpolate(rho.sub(0))
 		rho_res.interpolate(rho.sub(1))
-		beam.write(rho_i, stimulus, rho_str, rho_res, trace, us, time = i)
+		beam.write(rho_i, stimulus, rho_str, rho_res, trace, u, time = i)
 
 	with rho.dat.vec as rho_vec:
 		rho_vec.set(0.0)
