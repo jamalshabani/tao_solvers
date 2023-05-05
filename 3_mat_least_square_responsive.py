@@ -168,9 +168,9 @@ bcs = DirichletBC(VV, Constant((0, 0)), 7)
 # Define the objective function
 J = 0.5 * inner(u - u_star, u - u_star) * dx(4)
 # Define the Modica-Mortola functional
-func1_sub1 = kappa_d_e * W(v_v(rhos, rhor)) * dx
-func1_sub2 = kappa_d_e * W(v_s(rhos)) * dx
-func1_sub3 = kappa_d_e * W(v_r(rhor)) * dx
+func1_sub1 = kappa_d_e * W(v_v(rho)) * dx
+func1_sub2 = kappa_d_e * W(v_s(rho)) * dx
+func1_sub3 = kappa_d_e * W(v_r(rho)) * dx
 func1 = func1_sub1 +  func1_sub2 +  func1_sub3
 
 func2_sub1 = inner(grad(v_v(rho)), grad(v_v(rho))) * dx
