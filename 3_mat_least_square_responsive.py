@@ -63,12 +63,12 @@ x, y = SpatialCoordinate(mesh)
 rho2.interpolate(Constant(options.volume_s))
 #rho2 = 0.5 + 0.5 * sin(10*pi*x) * sin(8*pi*y)
 #rho2 = interpolate(rho2, V)
-#rho2.interpolate(Constant(1.0), mesh.measure_set("cell", 4))
+rho2.interpolate(Constant(1.0), mesh.measure_set("cell", 4))
 
 rho3.interpolate(Constant(options.volume_r))
 #rho3 = 0.5 + 0.5 * cos(10*pi*x) * cos(8*pi*y)
 #rho3 = interpolate(rho3, V)
-#rho3.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
+rho3.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
 s.interpolate(Constant(options.steamy))
 
 rho = as_vector([rho2, rho3, s])
@@ -178,8 +178,8 @@ func2 = kappa_m_e * (func2_sub1 + func2_sub2 + func2_sub3)
 func3 = lagrange_s * v_s(rho) * dx
 func4 = lagrange_r * v_r(rho) * dx
 
-func5 = v_v(rho) * pow(s_s(rho), 2) * dx
-func6 = v_s(rho) * pow(s_s(rho), 2) * dx
+func5 = pow(v_v(rho), 2) * pow(s_s(rho), 2) * dx
+func6 = pow(v_s(rho), 2) * pow(s_s(rho), 2) * dx
 
 # Objective function + Modica-Mortola functional
 P = func1 + func2 + func3 + func4 + func5 + func6
@@ -255,6 +255,7 @@ def FormObjectiveGradient(tao, x, G):
 		trace.interpolate(tr(epsilon(u)))
 		rho_str.interpolate(rho.sub(0))
 		rho_res.interpolate(rho.sub(1))
+		solve(R_fwd_s == 0, u, bcs = bcs)
 		beam.write(rho_i, stimulus, rho_str, rho_res, trace, u, time = i)
 
 	with rho.dat.vec as rho_vec:
@@ -264,7 +265,6 @@ def FormObjectiveGradient(tao, x, G):
 
 	# Solve forward PDE
 	solve(R_fwd == 0, u, bcs = bcs)
-	solve(R_fwd_s == 0, us, bcs = bcs)
 
 	# Solve adjoint PDE
 	solve(R_adj == 0, p, bcs = bcs)
@@ -275,10 +275,10 @@ def FormObjectiveGradient(tao, x, G):
 
 	# Compute gradiet w.r.t rho2 and rho3 and s
 	dJdrho2.interpolate(assemble(derivative(L, rho.sub(0))))
-	#dJdrho2.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
+	dJdrho2.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
 
 	dJdrho3.interpolate(assemble(derivative(L, rho.sub(1))))
-	#dJdrho3.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
+	dJdrho3.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
 	dJds.interpolate(assemble(derivative(L, rho.sub(2))))
 
 	G.setValues(index_2, dJdrho2.vector().array())
