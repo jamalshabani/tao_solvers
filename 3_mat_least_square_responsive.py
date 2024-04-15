@@ -274,12 +274,12 @@ def FormObjectiveGradient(tao, x, G):
 	# print("The value of objective function is {}".format(objective_value))
 
 	# Compute gradiet w.r.t rho2 and rho3 and s
-	dJdrho2.interpolate(assemble(derivative(L, rho.sub(0))))
+	dJdrho2.interpolate(assemble(derivative(L, rho.sub(0))).riesz_representation(riesz_map="l2"))
 	dJdrho2.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
 
-	dJdrho3.interpolate(assemble(derivative(L, rho.sub(1))))
+	dJdrho3.interpolate(assemble(derivative(L, rho.sub(1))).riesz_representation(riesz_map="l2"))
 	dJdrho3.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
-	dJds.interpolate(assemble(derivative(L, rho.sub(2))))
+	dJds.interpolate(assemble(derivative(L, rho.sub(2)))).riesz_representation(riesz_map="l2")
 
 	G.setValues(index_2, dJdrho2.vector().array())
 	G.setValues(index_3, dJdrho3.vector().array())
