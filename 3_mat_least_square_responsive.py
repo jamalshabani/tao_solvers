@@ -24,7 +24,7 @@ def parse():
 	parser.add_argument('-es', '--esmodulus', type = float, default = 0.1, help = 'Elastic Modulus for structural material')
 	parser.add_argument('-er', '--ermodulus', type = float, default = 1.0, help = 'Elastic Modulus for responsive material')
 	parser.add_argument('-p', '--power_p', type = float, default = 2.0, help = 'Power for elasticity interpolation')
-	parser.add_argument('-q', '--power_q', type = float, default = 1.0, help = 'Power for multiple-well function')
+	parser.add_argument('-q', '--power_q', type = float, default = 2.0, help = 'Power for multiple-well function')
 	parser.add_argument('-s', '--steamy', type = float, default = 1.0, help = 'Initial stimulus')
 	options = parser.parse_args()
 	return options
@@ -83,7 +83,7 @@ lagrange_s = Constant(options.lagrange_s)
 # Total volume of the domain |omega|
 omega = assemble(interpolate(Constant(1.0), V) * dx)
 
-delta = Constant(1.0e-3)
+delta = Constant(1.0e-6)
 epsilon = Constant(options.epsilon)
 kappa_d_e = Constant(kappa / epsilon)
 kappa_m_e = Constant(kappa * epsilon)
@@ -156,6 +156,21 @@ def sigma_s(u, Id):
 def sigma_r(u, Id):
 	return lambda_r * div(u) * Id + 2 * mu_r * epsilon(u)
 
+
+def updatels(lagrange_s, vol):
+	if assemble(v_s(rho) * dx) > vol:
+		lagrange_s = lagrange_s * 2
+	if assemble(v_s(rho) * dx) < vol:
+		lagrange_s = lagrange_s / 2
+	return lagrange_s
+
+def updatelr(lagrange_r, vol):
+	if assemble(v_r(rho) * dx) > vol:
+		lagrange_r = lagrange_r * 2
+	if assemble(v_r(rho) * dx) < vol:
+		lagrange_r = lagrange_r / 2
+	return lagrange_r
+
 # Define test function and beam displacement
 v = TestFunction(VV)
 u = Function(VV, name = "Displacement")
@@ -175,8 +190,8 @@ func2_sub3 = inner(grad(v_r(rho)), grad(v_r(rho))) * dx
 
 func2 = kappa_m_e * (func2_sub1 + func2_sub2 + func2_sub3)
 
-func3 = lagrange_s * v_s(rho) * dx
-func4 = lagrange_r * v_r(rho) * dx
+func3 = updatels(lagrange_s, options.volume_s) * v_s(rho) * dx
+func4 = updatelr(lagrange_r, options.volume_r) * v_r(rho) * dx
 
 func5 = pow(v_v(rho), 2) * pow(s_s(rho), 2) * dx
 func6 = pow(v_s(rho), 2) * pow(s_s(rho), 2) * dx
@@ -279,7 +294,7 @@ def FormObjectiveGradient(tao, x, G):
 
 	dJdrho3.interpolate(assemble(derivative(L, rho.sub(1))).riesz_representation(riesz_map="l2"))
 	dJdrho3.interpolate(Constant(0.0), mesh.measure_set("cell", 4))
-	dJds.interpolate(assemble(derivative(L, rho.sub(2)))).riesz_representation(riesz_map="l2")
+	dJds.interpolate(assemble(derivative(L, rho.sub(2))).riesz_representation(riesz_map="l2"))
 
 	G.setValues(index_2, dJdrho2.vector().array())
 	G.setValues(index_3, dJdrho3.vector().array())
